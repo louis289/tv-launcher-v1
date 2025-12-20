@@ -180,7 +180,7 @@ css = """
             box-shadow: 0 0 10px rgba(255, 255, 255, 0.5); 
         }
         """
-        css_provider.load_from_data(css)
+        css_provider.load_from_data(css.encode("utf-8"))
         Gtk.StyleContext.add_provider_for_screen(
             Gdk.Screen.get_default(), css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
