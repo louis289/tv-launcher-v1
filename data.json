@@ -1,0 +1,73 @@
+{
+  "ui": {
+    "title": "TV Launcher",
+    "columns": 4,
+    "tile_px": 220
+  },
+  "apps": [
+    {
+      "id": "netflix",
+      "name": "Netflix",
+      "type": "url",
+      "url": "https://www.netflix.com/browse",
+      "browser": "chrome",
+      "icon": "icons/netflix.png"
+    },
+    {
+      "id": "youtube",
+      "name": "Youtube",
+      "type": "url",
+      "url": "https://www.youtube.com",
+      "browser": "firefox",
+      "icon": "icons/youtube.png"
+    },
+    {
+      "id": "mediatheque_numerique",
+      "name": "Médiathèque numérique",
+      "type": "url",
+      "url": "https://mediatheque.ville-gardanne.fr/",
+      "browser": "firefox",
+      "icon": "icons/mediatheque_numerique.png"
+    },
+    {
+      "id": "gaia",
+      "name": "Gaia",
+      "type": "url",
+      "url": "https://gaia.fr/",
+      "browser": "firefox",
+      "icon": "icons/gaia.png"
+    },
+    {
+      "id": "wikiflix",
+      "name": "WikiFlix",
+      "type": "url",
+      "url": "https://wikiflix.toolforge.org/#/",
+      "browser": "firefox",
+      "icon": "icons/wikiflix.png"
+    },
+    {
+      "id": "bouygues_tv",
+      "name": "Bouygues TV",
+      "type": "url",
+      "url": "https://www.bouyguestelecom.fr/tv-direct/#/home",
+      "browser": "firefox",
+      "icon": "icons/bouygues_tv.png"
+    },
+    {
+      "id": "coflix",
+      "name": "Coflix",
+      "type": "url",
+      "url": "https://coflix.art",
+      "browser": "firefox",
+      "icon": "icons/coflix.png"
+    },
+    {
+      "id": "flemmix",
+      "name": "Flemmix",
+      "type": "url",
+      "url": "https://flemmix.bond/",
+      "browser": "firefox",
+      "icon": "icons/flemmix.png"
+    }
+  ]
+}
