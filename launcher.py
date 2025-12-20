@@ -19,17 +19,6 @@ def load_data():
     with open(DATA_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def play_sound(name):
-    """Joue un son situé dans le dossier 'son' (ex: play_sound('demarage'))"""
-    son_dir = os.path.join(BASE_DIR, "son")
-    # On cherche .mp3, .wav, .ogg
-    for ext in [".mp3", ".wav", ".ogg"]:
-        fpath = os.path.join(son_dir, f"{name}{ext}")
-        if os.path.exists(fpath):
-            # 'paplay' est le lecteur par défaut léger sur Ubuntu/Gnome
-            subprocess.Popen(["paplay", fpath], stderr=subprocess.DEVNULL)
-            return
-
 def launch_app(app):
     try:
         if app["type"] == "url":
@@ -82,7 +71,6 @@ def find_icon_url(page_url):
     except Exception:
         pass
 
-    # fallback favicon.ico
     p = urllib.parse.urlparse(page_url)
     return f"{p.scheme}://{p.netloc}/favicon.ico"
 
@@ -135,6 +123,15 @@ def ensure_icons(data):
         with open(DATA_PATH, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
+def play_sound(name):
+    """Joue un son situé dans le dossier 'son' (ex: play_sound('demarage'))"""
+    son_dir = os.path.join(BASE_DIR, "son")
+    for ext in [".mp3", ".wav", ".ogg"]:
+        fpath = os.path.join(son_dir, f"{name}{ext}")
+        if os.path.exists(fpath):
+            subprocess.Popen(["paplay", fpath], stderr=subprocess.DEVNULL)
+            return
+
 class Launcher(Gtk.Window):
     def __init__(self, data):
         super().__init__(title=data["ui"].get("title", "Launcher"))
@@ -147,8 +144,10 @@ class Launcher(Gtk.Window):
 
         # --- CSS (Design, Animation & SELECTION VISIBLE) ---
         css_provider = Gtk.CssProvider()
-css = """
-        /* 1. Bouton Fermer (En haut a droite) */
+        
+        # Le CSS est défini comme string normale, on l'encode après
+        css = """
+        /* 1. Bouton Fermer (En haut à droite) */
         #close_btn { 
             background: transparent; 
             color: rgba(255,255,255,0.2); 
@@ -168,7 +167,7 @@ css = """
         #main_overlay { opacity: 0; transition: opacity 1.5s ease-out; }
         #main_overlay.visible { opacity: 1; }
 
-        /* 3. VISIBILITE DE LA SELECTION (Le curseur) */
+        /* 3. VISIBILITÉ DE LA SÉLECTION (Le curseur) */
         button {
             border: 2px solid transparent; 
             border-radius: 10px;           
@@ -180,7 +179,9 @@ css = """
             box-shadow: 0 0 10px rgba(255, 255, 255, 0.5); 
         }
         """
+        # CORRECTION ICI : Encodage UTF-8 explicite et indentation correcte
         css_provider.load_from_data(css.encode("utf-8"))
+        
         Gtk.StyleContext.add_provider_for_screen(
             Gdk.Screen.get_default(), css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
