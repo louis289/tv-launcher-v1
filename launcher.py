@@ -148,7 +148,7 @@ class Launcher(Gtk.Window):
         # --- CSS (Design, Animation & SELECTION VISIBLE) ---
         css_provider = Gtk.CssProvider()
 css = """
-        /* 1. Bouton Fermer (En haut à droite) */
+        /* 1. Bouton Fermer (En haut a droite) */
         #close_btn { 
             background: transparent; 
             color: rgba(255,255,255,0.2); 
@@ -168,7 +168,7 @@ css = """
         #main_overlay { opacity: 0; transition: opacity 1.5s ease-out; }
         #main_overlay.visible { opacity: 1; }
 
-        /* 3. VISIBILITÉ DE LA SÉLECTION (Le curseur) */
+        /* 3. VISIBILITE DE LA SELECTION (Le curseur) */
         button {
             border: 2px solid transparent; 
             border-radius: 10px;           
