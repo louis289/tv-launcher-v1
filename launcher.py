@@ -2,11 +2,11 @@
 import urllib.request
 import urllib.parse
 from html.parser import HTMLParser
-
 import json
 import os
 import subprocess
 import shlex
+import time  # <--- Ajout pour la pause au démarrage
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -46,7 +46,6 @@ class IconParser(HTMLParser):
         href = attr.get("href")
         if not href:
             return
-
         if "apple-touch-icon" in rel:
             self.icons.append((0, href))
         elif "icon" in rel:
@@ -60,17 +59,14 @@ def find_icon_url(page_url):
         )
         with urllib.request.urlopen(req, timeout=5) as resp:
             html = resp.read(200_000).decode("utf-8", errors="ignore")
-
         parser = IconParser()
         parser.feed(html)
-
         if parser.icons:
             parser.icons.sort(key=lambda x: x[0])
             icon_href = parser.icons[0][1]
             return urllib.parse.urljoin(page_url, icon_href)
     except Exception:
         pass
-
     p = urllib.parse.urlparse(page_url)
     return f"{p.scheme}://{p.netloc}/favicon.ico"
 
@@ -82,10 +78,8 @@ def download_icon(icon_url, out_path):
         )
         with urllib.request.urlopen(req, timeout=5) as resp:
             data = resp.read(300_000)
-
         if not data:
             return False
-
         with open(out_path, "wb") as f:
             f.write(data)
         return True
@@ -96,35 +90,28 @@ def ensure_icons(data):
     icons_dir = os.path.join(BASE_DIR, "icons")
     os.makedirs(icons_dir, exist_ok=True)
     changed = False
-
     for app in data["apps"]:
         if app.get("icon"):
             continue
         if app.get("type") != "url":
             continue
-
         app_id = app["id"]
         icon_path = f"icons/{app_id}.png"
         full_path = os.path.join(BASE_DIR, icon_path)
-
         if os.path.exists(full_path):
             app["icon"] = icon_path
             changed = True
             continue
-
         print(f"[ICON] récupération pour {app_id}")
-
         icon_url = find_icon_url(app["url"])
         if download_icon(icon_url, full_path):
             app["icon"] = icon_path
             changed = True
-
     if changed:
         with open(DATA_PATH, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
 def play_sound(name):
-    """Joue un son situé dans le dossier 'son' (ex: play_sound('demarage'))"""
     son_dir = os.path.join(BASE_DIR, "son")
     for ext in [".mp3", ".wav", ".ogg"]:
         fpath = os.path.join(son_dir, f"{name}{ext}")
@@ -136,18 +123,22 @@ class Launcher(Gtk.Window):
     def __init__(self, data):
         super().__init__(title=data["ui"].get("title", "Launcher"))
         self.set_decorated(False)
+        
+        # --- FIX TAILLE ECRAN ---
+        # On récupère la taille de l'écran et on force la fenêtre
+        screen = Gdk.Screen.get_default()
+        monitor_w = screen.get_width()
+        monitor_h = screen.get_height()
+        self.set_default_size(monitor_w, monitor_h)
+        
         self.fullscreen()
         self.connect("destroy", Gtk.main_quit)
         
         self.boot_finished = False 
         self.first_btn = None
 
-        # --- CSS (Design, Animation & SELECTION VISIBLE) ---
         css_provider = Gtk.CssProvider()
-        
-        # Le CSS est défini comme string normale, on l'encode après
         css = """
-        /* 1. Bouton Fermer (En haut à droite) */
         #close_btn { 
             background: transparent; 
             color: rgba(255,255,255,0.2); 
@@ -162,12 +153,8 @@ class Launcher(Gtk.Window):
             background: rgba(255,255,255,0.1); 
             border-radius: 50px; 
         }
-
-        /* 2. Effet d'ouverture (Fade In) */
         #main_overlay { opacity: 0; transition: opacity 1.5s ease-out; }
         #main_overlay.visible { opacity: 1; }
-
-        /* 3. VISIBILITÉ DE LA SÉLECTION (Le curseur) */
         button {
             border: 2px solid transparent; 
             border-radius: 10px;           
@@ -179,14 +166,11 @@ class Launcher(Gtk.Window):
             box-shadow: 0 0 10px rgba(255, 255, 255, 0.5); 
         }
         """
-        # CORRECTION ICI : Encodage UTF-8 explicite et indentation correcte
         css_provider.load_from_data(css.encode("utf-8"))
-        
         Gtk.StyleContext.add_provider_for_screen(
             Gdk.Screen.get_default(), css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
 
-        # --- STRUCTURE ---
         self.overlay = Gtk.Overlay()
         self.overlay.set_name("main_overlay")
         self.add(self.overlay)
@@ -212,13 +196,10 @@ class Launcher(Gtk.Window):
         tile_px = data["ui"].get("tile_px", 200)
         tile_height_px = int(5.0 * 20) 
 
-        # --- GENERATION DES TUILES ---
         for i, app in enumerate(data["apps"]):
             btn = Gtk.Button()
             btn.set_size_request(tile_px, tile_px)
             btn.connect("clicked", lambda _b, a=app: launch_app(a))
-            
-            # Son de déplacement
             btn.connect("focus-in-event", self.on_app_focus)
 
             if i == 0:
@@ -248,10 +229,8 @@ class Launcher(Gtk.Window):
             box.pack_start(img, False, False, 0)
             box.pack_start(lbl, False, False, 0)
             btn.add(box)
-
             grid.attach(btn, i % cols, i // cols, 1, 1)
 
-        # --- BOUTON FERMER ---
         close_btn = Gtk.Button(label="✕")
         close_btn.set_name("close_btn")
         close_btn.set_halign(Gtk.Align.END)
@@ -261,13 +240,10 @@ class Launcher(Gtk.Window):
 
         self.show_all()
         
-        # --- SEQUENCE DE DEMARRAGE ---
         if self.first_btn:
             self.first_btn.grab_focus()
 
-        # JOUER SON : intro.mp3
         play_sound("intro")
-
         GLib.timeout_add(100, self.start_animation)
 
     def start_animation(self):
@@ -281,11 +257,15 @@ class Launcher(Gtk.Window):
 
     def on_app_focus(self, widget, event):
         if self.boot_finished:
-            # JOUER SON : mouv.mp3
             play_sound("mouv")
         return False
 
 if __name__ == "__main__":
+    # --- PAUSE DE SECURITE AU DEMARRAGE ---
+    # On attend 5 secondes pour être sûr que l'interface graphique est chargée
+    # Cela évite que la fenêtre soit déformée au boot
+    time.sleep(5)
+    
     data = load_data()
     ensure_icons(data)
     Launcher(data)
