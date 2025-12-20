@@ -1,0 +1,11 @@
+ghiglione@ghiglione-System-Product-Name:~/tv-launcher-v1$ ./launcher.py 
+Traceback (most recent call last):
+  File "/home/ghiglione/tv-launcher-v1/./launcher.py", line 272, in <module>
+    Launcher(data)
+  File "/home/ghiglione/tv-launcher-v1/./launcher.py", line 160, in __init__
+    css_provider.load_from_data(css)
+  File "/usr/lib/python3/dist-packages/gi/overrides/Gtk.py", line 1646, in load_from_data
+    super(CssProvider, self).load_from_data(text)
+gi.repository.GLib.GError: gtk-css-provider-error-quark: <data>:3:108'transform' is not a valid property name (3)
+ghiglione@ghiglione-System-Product-Name:~/tv-launcher-v1$ 
+
