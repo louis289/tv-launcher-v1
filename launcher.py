@@ -145,10 +145,10 @@ class Launcher(Gtk.Window):
         self.boot_finished = False 
         self.first_btn = None
 
-        # --- CSS CORRIGÉ (Sans 'transform') ---
+        # --- CSS (Design, Animation & SELECTION VISIBLE) ---
         css_provider = Gtk.CssProvider()
-        # J'ai retiré 'transform: scale(1.2)' qui faisait planter
         css = b"""
+        /* 1. Bouton Fermer (En haut à droite) */
         #close_btn { 
             background: transparent; 
             color: rgba(255,255,255,0.2); 
@@ -163,9 +163,22 @@ class Launcher(Gtk.Window):
             background: rgba(255,255,255,0.1); 
             border-radius: 50px; 
         }
-        
+
+        /* 2. Effet d'ouverture (Fade In) */
         #main_overlay { opacity: 0; transition: opacity 1.5s ease-out; }
         #main_overlay.visible { opacity: 1; }
+
+        /* 3. VISIBILITÉ DE LA SÉLECTION (Le curseur) */
+        button {
+            border: 2px solid transparent; /* Bordure invisible par défaut pour ne pas décaler */
+            border-radius: 10px;           /* Coins arrondis */
+            background-color: transparent; 
+        }
+        button:focus {
+            background-color: rgba(255, 255, 255, 0.15); /* Fond gris clair */
+            border: 2px solid #ffffff;                   /* Bordure blanche */
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5); /* Effet de lueur (Glow) */
+        }
         """
         css_provider.load_from_data(css)
         Gtk.StyleContext.add_provider_for_screen(
@@ -204,6 +217,7 @@ class Launcher(Gtk.Window):
             btn.set_size_request(tile_px, tile_px)
             btn.connect("clicked", lambda _b, a=app: launch_app(a))
             
+            # Son de déplacement
             btn.connect("focus-in-event", self.on_app_focus)
 
             if i == 0:
@@ -250,7 +264,8 @@ class Launcher(Gtk.Window):
         if self.first_btn:
             self.first_btn.grab_focus()
 
-        play_sound("demarage")
+        # JOUER SON : intro.mp3
+        play_sound("intro")
 
         GLib.timeout_add(100, self.start_animation)
 
@@ -265,7 +280,8 @@ class Launcher(Gtk.Window):
 
     def on_app_focus(self, widget, event):
         if self.boot_finished:
-            play_sound("deplacement")
+            # JOUER SON : mouv.mp3
+            play_sound("mouv")
         return False
 
 if __name__ == "__main__":
