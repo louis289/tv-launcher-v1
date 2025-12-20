@@ -15,8 +15,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(BASE_DIR, "data.json")
 
 # --- CONFIGURATION RESOLUTION TV ---
-FORCE_WIDTH = 3840
-FORCE_HEIGHT = 2160
+FORCE_WIDTH = 1920
+FORCE_HEIGHT = 1080
 
 def load_data():
     with open(DATA_PATH, "r", encoding="utf-8") as f:
