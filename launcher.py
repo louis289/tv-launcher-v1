@@ -142,18 +142,28 @@ class Launcher(Gtk.Window):
         self.fullscreen()
         self.connect("destroy", Gtk.main_quit)
         
-        # Variable pour éviter que le son "déplacement" ne se joue 
-        # pendant que l'app initialise le premier bouton
         self.boot_finished = False 
         self.first_btn = None
 
-        # --- CSS (Design & Animation) ---
+        # --- CSS CORRIGÉ (Sans 'transform') ---
         css_provider = Gtk.CssProvider()
+        # J'ai retiré 'transform: scale(1.2)' qui faisait planter
         css = b"""
-        #close_btn { background: transparent; color: rgba(255,255,255,0.2); border: none; font-size: 20px; font-weight: bold; margin: 20px; transition: all 0.3s; }
-        #close_btn:hover { color: #ff5555; background: rgba(255,255,255,0.1); border-radius: 50px; transform: scale(1.2); }
+        #close_btn { 
+            background: transparent; 
+            color: rgba(255,255,255,0.2); 
+            border: none; 
+            font-size: 20px; 
+            font-weight: bold; 
+            margin: 20px; 
+            transition: all 0.3s; 
+        }
+        #close_btn:hover { 
+            color: #ff5555; 
+            background: rgba(255,255,255,0.1); 
+            border-radius: 50px; 
+        }
         
-        /* L'overlay commence invisible (opacity 0) et transitionne vers 1 */
         #main_overlay { opacity: 0; transition: opacity 1.5s ease-out; }
         #main_overlay.visible { opacity: 1; }
         """
@@ -186,7 +196,7 @@ class Launcher(Gtk.Window):
 
         cols = data["ui"].get("columns", 4)
         tile_px = data["ui"].get("tile_px", 200)
-        tile_height_px = int(5.0 * 20) # 5cm approx
+        tile_height_px = int(5.0 * 20) 
 
         # --- GENERATION DES TUILES ---
         for i, app in enumerate(data["apps"]):
@@ -194,10 +204,8 @@ class Launcher(Gtk.Window):
             btn.set_size_request(tile_px, tile_px)
             btn.connect("clicked", lambda _b, a=app: launch_app(a))
             
-            # Gestion du son au déplacement (Focus)
             btn.connect("focus-in-event", self.on_app_focus)
 
-            # Sauvegarde du premier bouton pour le focus au démarrage
             if i == 0:
                 self.first_btn = btn
 
@@ -239,20 +247,15 @@ class Launcher(Gtk.Window):
         self.show_all()
         
         # --- SEQUENCE DE DEMARRAGE ---
-        # 1. Sélectionner la première app (sans faire de bruit car boot_finished=False)
         if self.first_btn:
             self.first_btn.grab_focus()
 
-        # 2. Jouer le son d'intro
         play_sound("demarage")
 
-        # 3. Lancer l'animation visuelle après 100ms
         GLib.timeout_add(100, self.start_animation)
 
     def start_animation(self):
-        # Déclenche le Fade-In CSS
         self.overlay.get_style_context().add_class("visible")
-        # Autorise les sons de déplacement après 500ms (le temps que tout soit stable)
         GLib.timeout_add(500, self.enable_sounds)
         return False
 
@@ -261,7 +264,6 @@ class Launcher(Gtk.Window):
         return False
 
     def on_app_focus(self, widget, event):
-        # Ne joue le son que si le démarrage est terminé
         if self.boot_finished:
             play_sound("deplacement")
         return False
