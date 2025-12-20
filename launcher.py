@@ -6,7 +6,6 @@ import json
 import os
 import subprocess
 import shlex
-import time  # <--- Ajout pour la pause au démarrage
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -14,6 +13,10 @@ from gi.repository import Gtk, Gdk, GdkPixbuf, GLib
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(BASE_DIR, "data.json")
+
+# --- CONFIGURATION RESOLUTION TV ---
+FORCE_WIDTH = 3840
+FORCE_HEIGHT = 2160
 
 def load_data():
     with open(DATA_PATH, "r", encoding="utf-8") as f:
@@ -37,64 +40,45 @@ class IconParser(HTMLParser):
     def __init__(self):
         super().__init__()
         self.icons = []
-
     def handle_starttag(self, tag, attrs):
-        if tag.lower() != "link":
-            return
+        if tag.lower() != "link": return
         attr = dict(attrs)
         rel = attr.get("rel", "").lower()
         href = attr.get("href")
-        if not href:
-            return
-        if "apple-touch-icon" in rel:
-            self.icons.append((0, href))
-        elif "icon" in rel:
-            self.icons.append((1, href))
+        if not href: return
+        if "apple-touch-icon" in rel: self.icons.append((0, href))
+        elif "icon" in rel: self.icons.append((1, href))
 
 def find_icon_url(page_url):
     try:
-        req = urllib.request.Request(
-            page_url,
-            headers={"User-Agent": "Mozilla/5.0 TVLauncher"}
-        )
+        req = urllib.request.Request(page_url, headers={"User-Agent": "Mozilla/5.0 TVLauncher"})
         with urllib.request.urlopen(req, timeout=5) as resp:
             html = resp.read(200_000).decode("utf-8", errors="ignore")
         parser = IconParser()
         parser.feed(html)
         if parser.icons:
             parser.icons.sort(key=lambda x: x[0])
-            icon_href = parser.icons[0][1]
-            return urllib.parse.urljoin(page_url, icon_href)
-    except Exception:
-        pass
+            return urllib.parse.urljoin(page_url, parser.icons[0][1])
+    except: pass
     p = urllib.parse.urlparse(page_url)
     return f"{p.scheme}://{p.netloc}/favicon.ico"
 
 def download_icon(icon_url, out_path):
     try:
-        req = urllib.request.Request(
-            icon_url,
-            headers={"User-Agent": "Mozilla/5.0 TVLauncher"}
-        )
+        req = urllib.request.Request(icon_url, headers={"User-Agent": "Mozilla/5.0 TVLauncher"})
         with urllib.request.urlopen(req, timeout=5) as resp:
             data = resp.read(300_000)
-        if not data:
-            return False
-        with open(out_path, "wb") as f:
-            f.write(data)
+        if not data: return False
+        with open(out_path, "wb") as f: f.write(data)
         return True
-    except Exception:
-        return False
+    except: return False
 
 def ensure_icons(data):
     icons_dir = os.path.join(BASE_DIR, "icons")
     os.makedirs(icons_dir, exist_ok=True)
     changed = False
     for app in data["apps"]:
-        if app.get("icon"):
-            continue
-        if app.get("type") != "url":
-            continue
+        if app.get("icon") or app.get("type") != "url": continue
         app_id = app["id"]
         icon_path = f"icons/{app_id}.png"
         full_path = os.path.join(BASE_DIR, icon_path)
@@ -103,8 +87,7 @@ def ensure_icons(data):
             changed = True
             continue
         print(f"[ICON] récupération pour {app_id}")
-        icon_url = find_icon_url(app["url"])
-        if download_icon(icon_url, full_path):
+        if download_icon(find_icon_url(app["url"]), full_path):
             app["icon"] = icon_path
             changed = True
     if changed:
@@ -124,52 +107,27 @@ class Launcher(Gtk.Window):
         super().__init__(title=data["ui"].get("title", "Launcher"))
         self.set_decorated(False)
         
-        # --- FIX TAILLE ECRAN ---
-        # On récupère la taille de l'écran et on force la fenêtre
-        screen = Gdk.Screen.get_default()
-        monitor_w = screen.get_width()
-        monitor_h = screen.get_height()
-        self.set_default_size(monitor_w, monitor_h)
-        
+        # --- FORCAGE TAILLE ---
+        # On impose la taille trouvée via SSH
+        self.set_default_size(FORCE_WIDTH, FORCE_HEIGHT)
+        self.set_size_request(FORCE_WIDTH, FORCE_HEIGHT)
         self.fullscreen()
-        self.connect("destroy", Gtk.main_quit)
         
+        self.connect("destroy", Gtk.main_quit)
         self.boot_finished = False 
         self.first_btn = None
 
         css_provider = Gtk.CssProvider()
         css = """
-        #close_btn { 
-            background: transparent; 
-            color: rgba(255,255,255,0.2); 
-            border: none; 
-            font-size: 20px; 
-            font-weight: bold; 
-            margin: 20px; 
-            transition: all 0.3s; 
-        }
-        #close_btn:hover { 
-            color: #ff5555; 
-            background: rgba(255,255,255,0.1); 
-            border-radius: 50px; 
-        }
+        #close_btn { background: transparent; color: rgba(255,255,255,0.2); border: none; font-size: 20px; font-weight: bold; margin: 20px; transition: all 0.3s; }
+        #close_btn:hover { color: #ff5555; background: rgba(255,255,255,0.1); border-radius: 50px; }
         #main_overlay { opacity: 0; transition: opacity 1.5s ease-out; }
         #main_overlay.visible { opacity: 1; }
-        button {
-            border: 2px solid transparent; 
-            border-radius: 10px;           
-            background-color: transparent; 
-        }
-        button:focus {
-            background-color: rgba(255, 255, 255, 0.15); 
-            border: 2px solid #ffffff;                   
-            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5); 
-        }
+        button { border: 2px solid transparent; border-radius: 10px; background-color: transparent; }
+        button:focus { background-color: rgba(255, 255, 255, 0.15); border: 2px solid #ffffff; box-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
         """
         css_provider.load_from_data(css.encode("utf-8"))
-        Gtk.StyleContext.add_provider_for_screen(
-            Gdk.Screen.get_default(), css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-        )
+        Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         self.overlay = Gtk.Overlay()
         self.overlay.set_name("main_overlay")
@@ -201,9 +159,7 @@ class Launcher(Gtk.Window):
             btn.set_size_request(tile_px, tile_px)
             btn.connect("clicked", lambda _b, a=app: launch_app(a))
             btn.connect("focus-in-event", self.on_app_focus)
-
-            if i == 0:
-                self.first_btn = btn
+            if i == 0: self.first_btn = btn
 
             box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
             box.set_halign(Gtk.Align.CENTER)
@@ -225,7 +181,6 @@ class Launcher(Gtk.Window):
             lbl.set_justify(Gtk.Justification.CENTER)
             lbl.set_max_width_chars(15)
             lbl.set_ellipsize(3)
-
             box.pack_start(img, False, False, 0)
             box.pack_start(lbl, False, False, 0)
             btn.add(box)
@@ -237,12 +192,9 @@ class Launcher(Gtk.Window):
         close_btn.set_valign(Gtk.Align.START)
         close_btn.connect("clicked", lambda w: Gtk.main_quit())
         self.overlay.add_overlay(close_btn)
-
-        self.show_all()
         
-        if self.first_btn:
-            self.first_btn.grab_focus()
-
+        self.show_all()
+        if self.first_btn: self.first_btn.grab_focus()
         play_sound("intro")
         GLib.timeout_add(100, self.start_animation)
 
@@ -256,16 +208,10 @@ class Launcher(Gtk.Window):
         return False
 
     def on_app_focus(self, widget, event):
-        if self.boot_finished:
-            play_sound("mouv")
+        if self.boot_finished: play_sound("mouv")
         return False
 
 if __name__ == "__main__":
-    # --- PAUSE DE SECURITE AU DEMARRAGE ---
-    # On attend 5 secondes pour être sûr que l'interface graphique est chargée
-    # Cela évite que la fenêtre soit déformée au boot
-    time.sleep(5)
-    
     data = load_data()
     ensure_icons(data)
     Launcher(data)
