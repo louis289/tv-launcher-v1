@@ -19,6 +19,17 @@ def load_data():
     with open(DATA_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
+def play_sound(name):
+    """Joue un son situé dans le dossier 'son' (ex: play_sound('demarage'))"""
+    son_dir = os.path.join(BASE_DIR, "son")
+    # On cherche .mp3, .wav, .ogg
+    for ext in [".mp3", ".wav", ".ogg"]:
+        fpath = os.path.join(son_dir, f"{name}{ext}")
+        if os.path.exists(fpath):
+            # 'paplay' est le lecteur par défaut léger sur Ubuntu/Gnome
+            subprocess.Popen(["paplay", fpath], stderr=subprocess.DEVNULL)
+            return
+
 def launch_app(app):
     try:
         if app["type"] == "url":
@@ -130,99 +141,130 @@ class Launcher(Gtk.Window):
         self.set_decorated(False)
         self.fullscreen()
         self.connect("destroy", Gtk.main_quit)
+        
+        # Variable pour éviter que le son "déplacement" ne se joue 
+        # pendant que l'app initialise le premier bouton
+        self.boot_finished = False 
+        self.first_btn = None
 
-
-# --- AJOUT CSS ---
+        # --- CSS (Design & Animation) ---
         css_provider = Gtk.CssProvider()
         css = b"""
-        #close_btn { background: transparent; color: rgba(255,255,255,0.3); border: none; font-size: 20px; font-weight: bold; margin: 15px; }
-        #close_btn:hover { color: #ff5555; background: rgba(255,255,255,0.1); border-radius: 50px; }
+        #close_btn { background: transparent; color: rgba(255,255,255,0.2); border: none; font-size: 20px; font-weight: bold; margin: 20px; transition: all 0.3s; }
+        #close_btn:hover { color: #ff5555; background: rgba(255,255,255,0.1); border-radius: 50px; transform: scale(1.2); }
+        
+        /* L'overlay commence invisible (opacity 0) et transitionne vers 1 */
+        #main_overlay { opacity: 0; transition: opacity 1.5s ease-out; }
+        #main_overlay.visible { opacity: 1; }
         """
         css_provider.load_from_data(css)
         Gtk.StyleContext.add_provider_for_screen(
             Gdk.Screen.get_default(), css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
 
+        # --- STRUCTURE ---
+        self.overlay = Gtk.Overlay()
+        self.overlay.set_name("main_overlay")
+        self.add(self.overlay)
+
         outer_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         outer_vbox.set_halign(Gtk.Align.CENTER)
         outer_vbox.set_valign(Gtk.Align.CENTER)
+        self.overlay.add(outer_vbox)
 
         outer_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         outer_hbox.set_halign(Gtk.Align.CENTER)
         outer_hbox.set_valign(Gtk.Align.CENTER)
-
-
-        overlay = Gtk.Overlay()
-        self.add(overlay)
-        overlay.add(outer_vbox)
+        outer_vbox.pack_start(outer_hbox, True, True, 0)
 
         grid = Gtk.Grid()
         grid.set_row_spacing(30)
         grid.set_column_spacing(30)
         grid.set_halign(Gtk.Align.CENTER)
         grid.set_valign(Gtk.Align.CENTER)
-
         outer_hbox.pack_start(grid, False, False, 0)
-        outer_vbox.pack_start(outer_hbox, True, True, 0)
 
         cols = data["ui"].get("columns", 4)
         tile_px = data["ui"].get("tile_px", 200)
+        tile_height_px = int(5.0 * 20) # 5cm approx
 
+        # --- GENERATION DES TUILES ---
         for i, app in enumerate(data["apps"]):
             btn = Gtk.Button()
             btn.set_size_request(tile_px, tile_px)
             btn.connect("clicked", lambda _b, a=app: launch_app(a))
+            
+            # Gestion du son au déplacement (Focus)
+            btn.connect("focus-in-event", self.on_app_focus)
+
+            # Sauvegarde du premier bouton pour le focus au démarrage
+            if i == 0:
+                self.first_btn = btn
 
             box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
             box.set_halign(Gtk.Align.CENTER)
             box.set_valign(Gtk.Align.CENTER)
 
-            from gi.repository import GdkPixbuf
-
-            # taille fixe en hauteur
-            tile_height_cm = 5.0
-            pixels_par_cm = 20  # ajuster selon ta TV
-            tile_height_px = int(tile_height_cm * pixels_par_cm)
-
             img = Gtk.Image()
             icon_path = os.path.join(BASE_DIR, app.get("icon", ""))
             if os.path.exists(icon_path):
-                # charger l'image avec GdkPixbuf pour redimension proportionnel
-                pixbuf = GdkPixbuf.Pixbuf.new_from_file(icon_path)
-                # calcul largeur proportionnelle
-                w = pixbuf.get_width()
-                h = pixbuf.get_height()
-                scale = tile_height_px / h
-                new_w = max(1, int(w * scale))
-                new_h = tile_height_px
-                # redimensionner
-                pixbuf = pixbuf.scale_simple(new_w, new_h, GdkPixbuf.InterpType.BILINEAR)
-                img.set_from_pixbuf(pixbuf)
-            else:
-                # icône fallback
-                img.set_from_icon_name("applications-internet", Gtk.IconSize.DIALOG)
-
+                try:
+                    pixbuf = GdkPixbuf.Pixbuf.new_from_file(icon_path)
+                    w, h = pixbuf.get_width(), pixbuf.get_height()
+                    scale = tile_height_px / h
+                    pixbuf = pixbuf.scale_simple(max(1, int(w*scale)), tile_height_px, GdkPixbuf.InterpType.BILINEAR)
+                    img.set_from_pixbuf(pixbuf)
+                except: img.set_from_icon_name("image-missing", Gtk.IconSize.DIALOG)
+            else: img.set_from_icon_name("applications-internet", Gtk.IconSize.DIALOG)
 
             lbl = Gtk.Label(label=app.get("name", "App"))
             lbl.set_justify(Gtk.Justification.CENTER)
+            lbl.set_max_width_chars(15)
+            lbl.set_ellipsize(3)
 
             box.pack_start(img, False, False, 0)
             box.pack_start(lbl, False, False, 0)
             btn.add(box)
 
-            r = i // cols
-            c = i % cols
-            grid.attach(btn, c, r, 1, 1)
+            grid.attach(btn, i % cols, i // cols, 1, 1)
 
-        # --- NOUVEAU BOUTON (Overlay) ---
+        # --- BOUTON FERMER ---
         close_btn = Gtk.Button(label="✕")
-        close_btn.set_name("close_btn") # Lien avec le CSS
-        close_btn.set_halign(Gtk.Align.END)   # Droite
-        close_btn.set_valign(Gtk.Align.START) # Haut
+        close_btn.set_name("close_btn")
+        close_btn.set_halign(Gtk.Align.END)
+        close_btn.set_valign(Gtk.Align.START)
         close_btn.connect("clicked", lambda w: Gtk.main_quit())
-        overlay.add_overlay(close_btn) # On le pose par dessus
+        self.overlay.add_overlay(close_btn)
 
         self.show_all()
+        
+        # --- SEQUENCE DE DEMARRAGE ---
+        # 1. Sélectionner la première app (sans faire de bruit car boot_finished=False)
+        if self.first_btn:
+            self.first_btn.grab_focus()
+
+        # 2. Jouer le son d'intro
+        play_sound("demarage")
+
+        # 3. Lancer l'animation visuelle après 100ms
+        GLib.timeout_add(100, self.start_animation)
+
+    def start_animation(self):
+        # Déclenche le Fade-In CSS
+        self.overlay.get_style_context().add_class("visible")
+        # Autorise les sons de déplacement après 500ms (le temps que tout soit stable)
+        GLib.timeout_add(500, self.enable_sounds)
+        return False
+
+    def enable_sounds(self):
+        self.boot_finished = True
+        return False
+
+    def on_app_focus(self, widget, event):
+        # Ne joue le son que si le démarrage est terminé
+        if self.boot_finished:
+            play_sound("deplacement")
+        return False
 
 if __name__ == "__main__":
     data = load_data()
