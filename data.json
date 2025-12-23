@@ -68,6 +68,13 @@
       "url": "https://flemmix.bond/",
       "browser": "firefox",
       "icon": "icons/flemmix.png"
+    },
+    {
+      "id": "frenchstream",
+      "name": "French-Stream",
+      "type": "url",
+      "url": "https://french-stream.one",
+      "browser": "firefox"
     }
   ]
 }
