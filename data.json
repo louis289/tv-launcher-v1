@@ -74,7 +74,8 @@
       "name": "French-Stream",
       "type": "url",
       "url": "https://french-stream.one",
-      "browser": "firefox"
+      "browser": "firefox",
+      "icon": "icons/frenchstream.png"
     }
   ]
 }
