@@ -14,9 +14,20 @@ from gi.repository import Gtk, Gdk, GdkPixbuf, GLib
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(BASE_DIR, "data.json")
 
-# --- CONFIGURATION RESOLUTION TV ---
+# ==========================================
+# REGLAGES D'AFFICHAGE
+# ==========================================
+
+# Changez juste ce chiffre pour tout agrandir ou rétrécir
+# 1.0 = PC Standard (1080p)
+# 2.0 = TV (1080p)
+# 3.0 = TV 4K (Votre cas)
+ZOOM_GLOBAL = 3.0
+
 FORCE_WIDTH = 3840 
 FORCE_HEIGHT = 2160
+
+# ==========================================
 
 def load_data():
     with open(DATA_PATH, "r", encoding="utf-8") as f:
@@ -107,8 +118,6 @@ class Launcher(Gtk.Window):
         super().__init__(title=data["ui"].get("title", "Launcher"))
         self.set_decorated(False)
         
-        # --- FORCAGE TAILLE ---
-        # On impose la taille trouvée via SSH
         self.set_default_size(FORCE_WIDTH, FORCE_HEIGHT)
         self.set_size_request(FORCE_WIDTH, FORCE_HEIGHT)
         self.fullscreen()
@@ -117,14 +126,57 @@ class Launcher(Gtk.Window):
         self.boot_finished = False 
         self.first_btn = None
 
+        # --- CALCULS PROPORTIONNELS ---
+        # On définit des tailles de base (pour Zoom=1.0) et on multiplie tout
+        
+        # Texte des applications
+        font_size_label = int(14 * ZOOM_GLOBAL)
+        # Texte de la croix de fermeture
+        font_size_close = int(20 * ZOOM_GLOBAL) 
+        # Marges de la croix
+        margin_close = int(20 * ZOOM_GLOBAL)
+        # Bordures (focus)
+        border_width = int(2 * ZOOM_GLOBAL)
+        focus_shadow = int(10 * ZOOM_GLOBAL)
+
         css_provider = Gtk.CssProvider()
-        css = """
-        #close_btn { background: transparent; color: rgba(255,255,255,0.2); border: none; font-size: 20px; font-weight: bold; margin: 20px; transition: all 0.3s; }
-        #close_btn:hover { color: #ff5555; background: rgba(255,255,255,0.1); border-radius: 50px; }
-        #main_overlay { opacity: 0; transition: opacity 1.5s ease-out; }
-        #main_overlay.visible { opacity: 1; }
-        button { border: 2px solid transparent; border-radius: 10px; background-color: transparent; }
-        button:focus { background-color: rgba(255, 255, 255, 0.15); border: 2px solid #ffffff; box-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
+        
+        # On injecte les variables calculées dans le CSS
+        css = f"""
+        #close_btn {{ 
+            background: transparent; 
+            color: rgba(255,255,255,0.2); 
+            border: none; 
+            font-size: {font_size_close}px; 
+            font-weight: bold; 
+            margin: {margin_close}px; 
+            transition: all 0.3s; 
+        }}
+        #close_btn:hover {{ 
+            color: #ff5555; 
+            background: rgba(255,255,255,0.1); 
+            border-radius: 50px; 
+        }}
+        #main_overlay {{ opacity: 0; transition: opacity 1.5s ease-out; }}
+        #main_overlay.visible {{ opacity: 1; }}
+        
+        button {{ 
+            border: {border_width}px solid transparent; 
+            border-radius: {int(10*ZOOM_GLOBAL)}px; 
+            background-color: transparent; 
+        }}
+        button:focus {{ 
+            background-color: rgba(255, 255, 255, 0.15); 
+            border: {border_width}px solid #ffffff; 
+            box-shadow: 0 0 {focus_shadow}px rgba(255, 255, 255, 0.5); 
+        }}
+        
+        label {{ 
+            font-size: {font_size_label}px; 
+            font-weight: bold; 
+            color: white; 
+            margin-top: {int(10*ZOOM_GLOBAL)}px; 
+        }}
         """
         css_provider.load_from_data(css.encode("utf-8"))
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
@@ -144,15 +196,20 @@ class Launcher(Gtk.Window):
         outer_vbox.pack_start(outer_hbox, True, True, 0)
 
         grid = Gtk.Grid()
-        grid.set_row_spacing(60)
-        grid.set_column_spacing(60)
+        # Espacement proportionnel
+        spacing_px = int(25 * ZOOM_GLOBAL)
+        grid.set_row_spacing(spacing_px)
+        grid.set_column_spacing(spacing_px)
         grid.set_halign(Gtk.Align.CENTER)
         grid.set_valign(Gtk.Align.CENTER)
         outer_hbox.pack_start(grid, False, False, 0)
 
         cols = data["ui"].get("columns", 4)
-        tile_px = data["ui"].get("tile_px", 6000)
-        tile_height_px = int(200) 
+        
+        # --- TAILLES OBJETS ---
+        # Base: 220px pour le bouton, 130px pour l'icône
+        tile_px = int(220 * ZOOM_GLOBAL)
+        tile_height_px = int(130 * ZOOM_GLOBAL)
 
         for i, app in enumerate(data["apps"]):
             btn = Gtk.Button()
@@ -161,7 +218,7 @@ class Launcher(Gtk.Window):
             btn.connect("focus-in-event", self.on_app_focus)
             if i == 0: self.first_btn = btn
 
-            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=int(5*ZOOM_GLOBAL))
             box.set_halign(Gtk.Align.CENTER)
             box.set_valign(Gtk.Align.CENTER)
 
@@ -179,7 +236,7 @@ class Launcher(Gtk.Window):
 
             lbl = Gtk.Label(label=app.get("name", "App"))
             lbl.set_justify(Gtk.Justification.CENTER)
-            lbl.set_max_width_chars(15)
+            lbl.set_max_width_chars(20)
             lbl.set_ellipsize(3)
             box.pack_start(img, False, False, 0)
             box.pack_start(lbl, False, False, 0)
