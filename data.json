@@ -76,6 +76,19 @@
       "url": "https://french-stream.one",
       "browser": "firefox",
       "icon": "icons/frenchstream.png"
+    },
+    {
+      "id": "deezer",
+      "name": "Deezer",
+      "type": "url",
+      "url": "https://www.deezer.com",
+      "browser": "firefox"
+    },
+    {
+      "id": "firefox_app",
+      "name": "Firefox",
+      "type": "cmd",
+      "cmd": "firefox --new-window"
     }
   ]
 }
