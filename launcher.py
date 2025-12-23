@@ -151,7 +151,7 @@ class Launcher(Gtk.Window):
         outer_hbox.pack_start(grid, False, False, 0)
 
         cols = data["ui"].get("columns", 4)
-        tile_px = data["ui"].get("tile_px", 200)
+        tile_px = data["ui"].get("tile_px", 600)
         tile_height_px = int(5.0 * 20) 
 
         for i, app in enumerate(data["apps"]):
