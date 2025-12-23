@@ -88,7 +88,8 @@
       "id": "firefox_app",
       "name": "Firefox",
       "type": "cmd",
-      "cmd": "firefox --new-window"
+      "cmd": "firefox --new-window",
+      "icon": "icons/firefox.png"
     }
   ]
 }
