@@ -144,8 +144,8 @@ class Launcher(Gtk.Window):
         outer_vbox.pack_start(outer_hbox, True, True, 0)
 
         grid = Gtk.Grid()
-        grid.set_row_spacing(30)
-        grid.set_column_spacing(30)
+        grid.set_row_spacing(60)
+        grid.set_column_spacing(60)
         grid.set_halign(Gtk.Align.CENTER)
         grid.set_valign(Gtk.Align.CENTER)
         outer_hbox.pack_start(grid, False, False, 0)
