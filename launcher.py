@@ -22,7 +22,7 @@ DATA_PATH = os.path.join(BASE_DIR, "data.json")
 # 1.0 = PC Standard (1080p)
 # 2.0 = TV (1080p)
 # 3.0 = TV 4K (Votre cas)
-ZOOM_GLOBAL = 3.0
+ZOOM_GLOBAL = 2.0
 
 FORCE_WIDTH = 3840 
 FORCE_HEIGHT = 2160
