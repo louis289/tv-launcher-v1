@@ -151,8 +151,8 @@ class Launcher(Gtk.Window):
         outer_hbox.pack_start(grid, False, False, 0)
 
         cols = data["ui"].get("columns", 4)
-        tile_px = data["ui"].get("tile_px", 600)
-        tile_height_px = int(5.0 * 40) 
+        tile_px = data["ui"].get("tile_px", 6000)
+        tile_height_px = int(200) 
 
         for i, app in enumerate(data["apps"]):
             btn = Gtk.Button()
