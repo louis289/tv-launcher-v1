@@ -111,7 +111,8 @@
       "name": "Moiflix",
       "type": "url",
       "url": "https://moiflix.org/",
-      "browser": "firefox"
+      "browser": "firefox",
+      "icon": "icons/moiflix.png"
     }
   ]
 }
