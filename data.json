@@ -105,6 +105,13 @@
       "type": "url",
       "url": "https://juststream.mov/",
       "browser": "firefox"
+    },
+    {
+      "id": "moiflix",
+      "name": "Moiflix",
+      "type": "url",
+      "url": "https://moiflix.org/",
+      "browser": "firefox"
     }
   ]
 }
