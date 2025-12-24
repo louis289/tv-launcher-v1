@@ -54,10 +54,32 @@
       "icon": "icons/bouygues_tv.png"
     },
     {
-      "id": "coflix",
-      "name": "Coflix",
+      "id": "deezer",
+      "name": "Deezer",
+      "type": "url",
+      "url": "https://www.deezer.com",
+      "browser": "firefox"
+    },
+    {
+      "id": "firefox_app",
+      "name": "Firefox",
+      "type": "cmd",
+      "cmd": "firefox --new-window",
+      "icon": "icons/firefox.png"
+    },
+    {
+      "id": "coflix1",
+      "name": "Coflix art",
       "type": "url",
       "url": "https://coflix.art",
+      "browser": "firefox",
+      "icon": "icons/coflix.png"
+    },
+    {
+      "id": "coflix2",
+      "name": "Coflix nexus",
+      "type": "url",
+      "url": "https://coflix.nexus",
       "browser": "firefox",
       "icon": "icons/coflix.png"
     },
@@ -78,18 +100,11 @@
       "icon": "icons/frenchstream.png"
     },
     {
-      "id": "deezer",
-      "name": "Deezer",
+      "id": "juststream",
+      "name": "JustStream",
       "type": "url",
-      "url": "https://www.deezer.com",
+      "url": "https://juststream.mov/",
       "browser": "firefox"
-    },
-    {
-      "id": "firefox_app",
-      "name": "Firefox",
-      "type": "cmd",
-      "cmd": "firefox --new-window",
-      "icon": "icons/firefox.png"
     }
   ]
 }
