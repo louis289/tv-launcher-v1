@@ -12,7 +12,7 @@
   "cmd": "bash -c 'killall hyperiond; env DISPLAY=:0 XAUTHORITY=/home/ghiglione/.Xauthority nohup /bin/hyperiond > /dev/null 2>&1 &'",
   "icon": "icons/hyperion.png"
 },
-    {
+{
       "id": "netflix",
       "name": "Netflix",
       "type": "url",
@@ -65,7 +65,8 @@
       "name": "Deezer",
       "type": "url",
       "url": "https://www.deezer.com",
-      "browser": "firefox"
+      "browser": "firefox",
+      "icon": "icons/deezer.png"
     },
     {
       "id": "firefox_app",
@@ -111,7 +112,8 @@
       "name": "JustStream",
       "type": "url",
       "url": "https://juststream.mov/",
-      "browser": "firefox"
+      "browser": "firefox",
+      "icon": "icons/juststream.png"
     },
     {
       "id": "moiflix",
@@ -122,4 +124,3 @@
       "icon": "icons/moiflix.png"
     }
   ]
-}
