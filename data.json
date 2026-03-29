@@ -6,6 +6,13 @@
   },
   "apps": [
     {
+  "id": "hyperion",
+  "name": "Lumières Hyperion",
+  "type": "cmd",
+  "cmd": "bash -c 'killall hyperiond; env DISPLAY=:0 XAUTHORITY=/home/ghiglione/.Xauthority nohup /bin/hyperiond > /dev/null 2>&1 &'",
+  "icon": "icons/hyperion.png"
+},
+    {
       "id": "netflix",
       "name": "Netflix",
       "type": "url",
