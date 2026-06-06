@@ -14,8 +14,11 @@
 </head>
 <body>
 
-  <!-- Main App Container -->
-  <div class="app-container">
+  <!-- Outer Desktop Wrapper -->
+  <div class="desktop-layout-container">
+    
+    <!-- Main App Container -->
+    <div class="app-container">
     
     <!-- HEADER -->
     <header class="app-header">
@@ -140,9 +143,9 @@
           
           <!-- Column 1: Left controls -->
           <div class="remote-col remote-col-left">
-            <button class="btn btn-remote-action btn-danger-sys" onclick="sendDirectKey('q', ['ctrl'])" title="Quitter l'application">
-              <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/></svg>
-              <span>Quitter</span>
+            <button class="btn btn-remote-action btn-danger-sys" onclick="shutdownPC()" title="Éteindre le PC">
+              <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9S16.97,3,12,3z M12,19c-3.86,0-7-3.14-7-7s3.14-7,7-7s7,3.14,7,7S15.86,19,12,19z M11.5,6h1v6h-1V6z"/></svg>
+              <span>Éteindre PC</span>
             </button>
             
             <button class="btn btn-remote-action" onclick="sendDirectKey('Super_L')" title="Multitâche">
@@ -232,9 +235,9 @@
               <svg viewBox="0 0 24 24"><path fill="currentColor" d="M5,5H10V7H7V10H5V5M14,5H19V10H17V7H14V5M17,14H19V19H14V17H17V14M7,14H5V19H10V17H7V14Z"/></svg>
               <span>Grand Écran</span>
             </button>
-            <button class="btn btn-sys btn-shutdown" onclick="shutdownPC()">
-              <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9S16.97,3,12,3z M12,19c-3.86,0-7-3.14-7-7s3.14-7,7-7s7,3.14,7,7S15.86,19,12,19z M11.5,6h1v6h-1V6z"/></svg>
-              <span>Éteindre PC</span>
+            <button class="btn btn-sys btn-danger-sys" onclick="sendDirectKey('q', ['ctrl'])" title="Quitter l'application (Ctrl+Q)">
+              <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/></svg>
+              <span>Quitter App</span>
             </button>
           </div>
         </div>
@@ -258,6 +261,49 @@
       </button>
     </nav>
   </div>
+
+  <!-- Live TV Screen Monitor Container -->
+  <div class="monitor-container" id="live-monitor-container">
+    <header class="monitor-header">
+      <div class="monitor-title-bar">
+        <span class="monitor-dot"></span>
+        <h2>Moniteur TV en Direct</h2>
+      </div>
+      <div class="monitor-controls">
+        <div class="monitor-control-item">
+          <span>Flux Actif</span>
+          <label class="switch">
+            <input type="checkbox" id="chk-monitor-active">
+            <span class="slider-round"></span>
+          </label>
+        </div>
+        <div class="monitor-control-item">
+          <span>Contrôle Live</span>
+          <label class="switch">
+            <input type="checkbox" id="chk-control-active">
+            <span class="slider-round"></span>
+          </label>
+        </div>
+      </div>
+    </header>
+    
+    <div class="monitor-screen-wrapper">
+      <div class="monitor-screen-inner" id="monitor-screen-inner">
+        <img id="monitor-screenshot" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='9' viewBox='0 0 16 9'><rect width='100%' height='100%' fill='%23181824'/><text x='50%' y='50%' font-family='sans-serif' font-size='0.8' fill='%236e6e8a' dominant-baseline='middle' text-anchor='middle'>Flux Inactif</text></svg>" alt="TV Screen Monitor">
+        <div class="monitor-pointer-indicator" id="monitor-pointer" style="display:none;"></div>
+      </div>
+    </div>
+
+    <footer class="monitor-footer">
+      <div class="fps-control">
+        <label for="range-monitor-fps">Rafraîchissement : <span id="val-monitor-fps">2</span> FPS</label>
+        <input type="range" id="range-monitor-fps" min="1" max="10" value="2">
+      </div>
+      <span class="monitor-tip">Clic droit possible. Activer le contrôle pour envoyer clavier/souris</span>
+    </footer>
+  </div>
+
+</div>
 
   <!-- MODAL DIALOG FOR APPS CMS (ADD / EDIT) -->
   <div id="app-modal" class="modal-overlay">

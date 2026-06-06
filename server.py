@@ -271,6 +271,52 @@ def control_hyperion(action):
     return False
 
 # ---------------------------------------------------------
+# Screen Capture & Display Geometry Helpers
+# ---------------------------------------------------------
+def capture_screen():
+    import tempfile
+    tmp_file = os.path.join(tempfile.gettempdir(), "tv_screen.png")
+    env = get_x11_env()
+    
+    # Try scrot first (fast & silent)
+    try:
+        res = subprocess.run(["scrot", "-z", "-o", tmp_file], env=env, capture_output=True)
+        if res.returncode == 0 and os.path.exists(tmp_file):
+            return tmp_file
+    except Exception:
+        pass
+
+    # Try gnome-screenshot
+    try:
+        res = subprocess.run(["gnome-screenshot", "-f", tmp_file], env=env, capture_output=True)
+        if res.returncode == 0 and os.path.exists(tmp_file):
+            return tmp_file
+    except Exception:
+        pass
+
+    # Try import (ImageMagick)
+    try:
+        res = subprocess.run(["import", "-window", "root", tmp_file], env=env, capture_output=True)
+        if res.returncode == 0 and os.path.exists(tmp_file):
+            return tmp_file
+    except Exception:
+        pass
+        
+    return None
+
+def get_screen_resolution():
+    try:
+        env = get_x11_env()
+        res = subprocess.run(["xdotool", "getdisplaygeometry"], env=env, capture_output=True, text=True)
+        if res.returncode == 0:
+            parts = res.stdout.strip().split()
+            if len(parts) == 2:
+                return int(parts[0]), int(parts[1])
+    except Exception:
+        pass
+    return 1920, 1080 # Fallback
+
+# ---------------------------------------------------------
 # Safe Static File Serving
 # ---------------------------------------------------------
 def safe_serve_file(handler, base_dir, filename, content_type):
@@ -357,6 +403,22 @@ class TVRemoteHandler(BaseHTTPRequestHandler):
                 self.send_json(data)
             except Exception as e:
                 self.send_json({"error": str(e)}, status=500)
+        elif path == "/api/system/screenshot":
+            img_path = capture_screen()
+            if img_path and os.path.exists(img_path):
+                try:
+                    with open(img_path, "rb") as f:
+                        content = f.read()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "image/png")
+                    self.send_header("Content-Length", str(len(content)))
+                    self.send_cors_headers()
+                    self.end_headers()
+                    self.wfile.write(content)
+                except Exception as e:
+                    self.send_json({"error": str(e)}, status=500)
+            else:
+                self.send_json({"error": "Impossible de capturer l'écran"}, status=500)
         else:
             self.send_error(404, "Fichier Non Trouvé")
             
@@ -511,6 +573,14 @@ class TVRemoteHandler(BaseHTTPRequestHandler):
             dx = body.get("dx", 0)
             dy = body.get("dy", 0)
             success = run_xdotool(["mousemove_relative", "--", str(dx), str(dy)])
+            
+        elif path == "/api/mouse/move_abs":
+            x = body.get("x", 0.5)
+            y = body.get("y", 0.5)
+            w, h = get_screen_resolution()
+            abs_x = int(x * w)
+            abs_y = int(y * h)
+            success = run_xdotool(["mousemove", str(abs_x), str(abs_y)])
             
         elif path == "/api/mouse/click":
             btn = body.get("button", "left")

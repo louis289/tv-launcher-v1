@@ -490,13 +490,14 @@ body {
 }
 
 .remote-col-center {
-  justify-content: center;
+  justify-content: flex-start;
+  padding-top: 15px;
   align-items: center;
 }
 
 /* Action button for Quit and Multitask */
 .btn-remote-action {
-  height: 44px;
+  height: 54px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -513,13 +514,13 @@ body {
 }
 
 .btn-remote-action svg {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   color: var(--accent-cyan);
 }
 
 .btn-remote-action span {
-  font-size: 0.62rem;
+  font-size: 0.68rem;
 }
 
 .btn-remote-action:active {
@@ -564,7 +565,7 @@ body {
 /* Volume control inside card */
 .btn-vol {
   width: 100%;
-  height: 32px;
+  height: 38px;
   padding: 0;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border-color);
@@ -577,8 +578,8 @@ body {
 }
 
 .btn-vol svg {
-  width: 15px;
-  height: 15px;
+  width: 18px;
+  height: 18px;
 }
 
 .btn-vol:active {
@@ -588,7 +589,7 @@ body {
 
 /* Zoom reset custom text style */
 .btn-zoom-reset {
-  font-size: 0.6rem !important;
+  font-size: 0.65rem !important;
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -622,8 +623,8 @@ body {
 
 .dpad {
   position: relative;
-  width: 125px;
-  height: 125px;
+  width: 160px;
+  height: 160px;
   background: rgba(255, 255, 255, 0.01);
   border: 1.5px solid var(--border-color);
   border-radius: 50%;
@@ -646,27 +647,27 @@ body {
 }
 
 .dpad-btn svg {
-  width: 26px;
-  height: 26px;
+  width: 32px;
+  height: 32px;
 }
 
 .dpad-btn:active {
   color: var(--accent-cyan);
 }
 
-.dpad-up { top: 0; left: 50%; transform: translateX(-50%); width: 60px; height: 36px; }
-.dpad-down { bottom: 0; left: 50%; transform: translateX(-50%); width: 60px; height: 36px; }
-.dpad-left { left: 0; top: 50%; transform: translateY(-50%); width: 36px; height: 60px; }
-.dpad-right { right: 0; top: 50%; transform: translateY(-50%); width: 36px; height: 60px; }
+.dpad-up { top: 0; left: 50%; transform: translateX(-50%); width: 80px; height: 48px; }
+.dpad-down { bottom: 0; left: 50%; transform: translateX(-50%); width: 80px; height: 48px; }
+.dpad-left { left: 0; top: 50%; transform: translateY(-50%); width: 48px; height: 80px; }
+.dpad-right { right: 0; top: 50%; transform: translateY(-50%); width: 48px; height: 80px; }
 
 .dpad-ok {
-  width: 46px;
-  height: 46px;
+  width: 56px;
+  height: 56px;
   background: linear-gradient(135deg, #161e2d 0%, #0a0d16 100%);
   border: 1.5px solid var(--border-color);
   border-radius: 50%;
   font-weight: 700;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: var(--text-primary);
   z-index: 2;
 }
@@ -1239,4 +1240,220 @@ input:checked + .slider-round:before {
   height: 28px;
   padding: 0 12px;
   font-size: 0.7rem;
+}
+
+/* =========================================================
+   Responsive PC Monitor & Split Layout
+   ========================================================= */
+
+.desktop-layout-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.monitor-container {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .desktop-layout-container {
+    max-width: 1100px;
+    width: 100%;
+    height: 90vh;
+    height: 90dvh;
+    gap: 30px;
+    align-self: center;
+  }
+  
+  .app-container {
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    height: 100%;
+  }
+  
+  .monitor-container {
+    display: flex !important;
+    flex-direction: column;
+    flex: 1.3;
+    height: 100%;
+    background: radial-gradient(circle at top, #141b2d 0%, #090c13 100%);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    padding: 20px;
+    gap: 16px;
+  }
+}
+
+.monitor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+}
+
+.monitor-title-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.monitor-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.monitor-dot.active {
+  background-color: var(--accent-cyan);
+  box-shadow: 0 0 8px var(--accent-cyan);
+}
+
+.monitor-title-bar h2 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.monitor-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.monitor-control-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.monitor-control-item .switch {
+  position: relative;
+  display: inline-block;
+  width: 32px;
+  height: 18px;
+}
+
+.monitor-control-item .switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.monitor-control-item .slider-round {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  transition: .2s;
+  border-radius: 20px;
+}
+
+.monitor-control-item .slider-round:before {
+  position: absolute;
+  content: "";
+  height: 10px;
+  width: 10px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--text-secondary);
+  transition: .2s;
+  border-radius: 50%;
+}
+
+.monitor-control-item input:checked + .slider-round {
+  background-color: rgba(0, 221, 255, 0.1);
+  border-color: var(--accent-cyan);
+}
+
+.monitor-control-item input:checked + .slider-round:before {
+  transform: translateX(14px);
+  background-color: var(--accent-cyan);
+}
+
+.monitor-screen-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #0b0f19;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.monitor-screen-inner {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #000;
+}
+
+.monitor-screen-inner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  cursor: default;
+}
+
+.monitor-screen-inner.control-enabled img {
+  cursor: crosshair;
+}
+
+.monitor-pointer-indicator {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--accent-cyan);
+  border: 2px solid #fff;
+  box-shadow: 0 0 6px rgba(0,0,0,0.8);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
+
+.monitor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.monitor-footer .fps-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.monitor-footer .fps-control input[type=range] {
+  accent-color: var(--accent-cyan);
+  width: 80px;
+  height: 3px;
+  cursor: pointer;
+}
+
+.monitor-tip {
+  font-style: italic;
 }

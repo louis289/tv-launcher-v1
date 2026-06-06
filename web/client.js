@@ -39,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initGyroscope();
   initUrlLauncher();
   initAppsCMS(); // Initialize Modal & Edit Mode triggers
+  initMonitor(); // Initialize live TV screen monitor
   
   // Connection status loop
   checkStatus();
@@ -962,3 +963,207 @@ async function moveAppInList(currentIndex, direction) {
     initApps();
   }
 }
+
+// ---------------------------------------------------------
+// Live Screen Monitor & Interactive VNC Control
+// ---------------------------------------------------------
+let isMonitorActive = false;
+let isControlActive = false;
+let monitorFps = 2;
+let monitorInterval = null;
+let isPolling = false;
+let lastMoveAbsTime = 0;
+const MOVE_ABS_THROTTLE_MS = 60;
+
+function initMonitor() {
+  const chkMonitor = document.getElementById('chk-monitor-active');
+  const chkControl = document.getElementById('chk-control-active');
+  const fpsSlider = document.getElementById('range-monitor-fps');
+  const fpsVal = document.getElementById('val-monitor-fps');
+  const img = document.getElementById('monitor-screenshot');
+  const innerWrapper = document.getElementById('monitor-screen-inner');
+  
+  if (!chkMonitor || !chkControl || !fpsSlider || !img) return;
+
+  // 1. Toggle Monitor Active
+  chkMonitor.addEventListener('change', () => {
+    if (chkMonitor.checked) {
+      startMonitor();
+    } else {
+      stopMonitor();
+    }
+  });
+
+  // 2. Toggle Interactive Keyboard/Mouse Control
+  chkControl.addEventListener('change', () => {
+    isControlActive = chkControl.checked;
+    innerWrapper.classList.toggle('control-enabled', isControlActive);
+    
+    if (!isControlActive) {
+      document.getElementById('monitor-pointer').style.display = 'none';
+    }
+    vibrate(20);
+  });
+
+  // 3. FPS adjustment
+  fpsSlider.addEventListener('input', () => {
+    monitorFps = parseInt(fpsSlider.value);
+    fpsVal.textContent = monitorFps;
+  });
+
+  // 4. Mouse movement on image
+  img.addEventListener('mousemove', (e) => {
+    if (!isControlActive) return;
+    
+    const rect = img.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    
+    // Send absolute movement command to server (throttled)
+    sendThrottledMoveAbs(x, y);
+    
+    // Draw pointer indicator locally
+    updateLocalPointer(e.clientX - rect.left, e.clientY - rect.top);
+  });
+
+  // 5. Mouse click on image
+  img.addEventListener('mousedown', (e) => {
+    if (!isControlActive) return;
+    
+    const rect = img.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    
+    // Move first to target point, then perform click
+    sendMoveAbsDirect(x, y, () => {
+      const buttonName = e.button === 2 ? 'right' : 'left';
+      apiPost('/api/mouse/click', { button: buttonName });
+    });
+    
+    e.preventDefault();
+  });
+
+  // 6. Disable right click context menu inside screen share
+  img.addEventListener('contextmenu', (e) => {
+    if (isControlActive) {
+      e.preventDefault();
+    }
+  });
+}
+
+function startMonitor() {
+  isMonitorActive = true;
+  document.querySelector('.monitor-dot').classList.add('active');
+  pollScreenshot();
+}
+
+function stopMonitor() {
+  isMonitorActive = false;
+  document.querySelector('.monitor-dot').classList.remove('active');
+  if (monitorInterval) {
+    clearTimeout(monitorInterval);
+    monitorInterval = null;
+  }
+  const img = document.getElementById('monitor-screenshot');
+  img.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='9' viewBox='0 0 16 9'><rect width='100%' height='100%' fill='%23181824'/><text x='50%' y='50%' font-family='sans-serif' font-size='0.8' fill='%236e6e8a' dominant-baseline='middle' text-anchor='middle'>Flux Inactif</text></svg>";
+  document.getElementById('monitor-pointer').style.display = 'none';
+}
+
+function pollScreenshot() {
+  if (!isMonitorActive) return;
+  if (isPolling) return;
+  
+  isPolling = true;
+  const img = document.getElementById('monitor-screenshot');
+  
+  const tempImg = new Image();
+  tempImg.onload = () => {
+    img.src = tempImg.src;
+    isPolling = false;
+    scheduleNextPoll();
+  };
+  tempImg.onerror = () => {
+    isPolling = false;
+    scheduleNextPoll();
+  };
+  // Append timestamp parameter to force browser cache bypass
+  tempImg.src = `/api/system/screenshot?t=${Date.now()}`;
+}
+
+function scheduleNextPoll() {
+  if (monitorInterval) clearTimeout(monitorInterval);
+  const delay = 1000 / monitorFps;
+  monitorInterval = setTimeout(pollScreenshot, delay);
+}
+
+function sendThrottledMoveAbs(x, y) {
+  const now = Date.now();
+  if (now - lastMoveAbsTime >= MOVE_ABS_THROTTLE_MS) {
+    lastMoveAbsTime = now;
+    apiPost('/api/mouse/move_abs', { x: x, y: y });
+  }
+}
+
+async function sendMoveAbsDirect(x, y, callback) {
+  const res = await apiPost('/api/mouse/move_abs', { x: x, y: y });
+  if (res && res.success && callback) {
+    callback();
+  }
+}
+
+function updateLocalPointer(px, py) {
+  const pointer = document.getElementById('monitor-pointer');
+  if (pointer) {
+    pointer.style.display = 'block';
+    pointer.style.left = px + 'px';
+    pointer.style.top = py + 'px';
+  }
+}
+
+// 7. Global physical keyboard handler when control is active
+window.addEventListener('keydown', (e) => {
+  if (!isControlActive) return;
+  
+  // Skip if user is actively editing a text input
+  const activeEl = document.activeElement;
+  if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT')) {
+    return;
+  }
+  
+  // Mapping key strings to xdotool named keys
+  const keyMap = {
+    'Backspace': 'BackSpace',
+    'Tab': 'Tab',
+    'Enter': 'Return',
+    'Escape': 'Escape',
+    ' ': 'space',
+    'ArrowLeft': 'Left',
+    'ArrowUp': 'Up',
+    'ArrowRight': 'Right',
+    'ArrowDown': 'Down',
+    'Delete': 'Delete',
+    'F11': 'F11'
+  };
+  
+  const ignoredKeys = ['Control', 'Shift', 'Alt', 'Meta', 'CapsLock'];
+  if (ignoredKeys.includes(e.key)) {
+    return;
+  }
+  
+  let key = keyMap[e.key] || e.key;
+  
+  // Modifiers tracking
+  const modifiers = [];
+  if (e.ctrlKey) modifiers.push('ctrl');
+  if (e.altKey) modifiers.push('alt');
+  if (e.metaKey) modifiers.push('super');
+  if (e.shiftKey && key.length > 1) modifiers.push('shift');
+  
+  // Send combo to TV server
+  apiPost('/api/keyboard/key', {
+    key: key,
+    modifiers: modifiers
+  });
+  
+  e.preventDefault();
+});
