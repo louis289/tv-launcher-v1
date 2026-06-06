@@ -821,3 +821,265 @@ input:checked + .slider-round:before {
 .nav-item.active svg {
   transform: translateY(-1px);
 }
+
+/* ---------------------------------------------------------
+   Apps Edit Mode & Header Actions
+   --------------------------------------------------------- */
+.apps-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-icon-toggle {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-family: var(--font-family);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-icon-toggle.active {
+  background: rgba(0, 221, 255, 0.1);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  box-shadow: 0 0 8px rgba(0, 221, 255, 0.2);
+}
+
+/* Shake animation for iOS edit mode effect */
+@keyframes wobble {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(-0.6deg); }
+  75% { transform: rotate(0.6deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.apps-grid.edit-mode .app-item-btn {
+  animation: wobble 0.28s infinite;
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.03);
+  position: relative;
+  /* Add padding bottom to make space for arrow buttons */
+  padding-bottom: 26px;
+}
+
+/* Edit overlay buttons */
+.btn-delete-app {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-red);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.2);
+  font-size: 9px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  z-index: 5;
+}
+
+.btn-edit-app {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-indigo);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.2);
+  font-size: 9px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  z-index: 5;
+}
+
+/* Reorder actions row at bottom of card */
+.app-reorder-actions {
+  position: absolute;
+  bottom: 4px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 6px;
+  z-index: 4;
+}
+
+.btn-reorder {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-primary);
+  width: 20px;
+  height: 18px;
+  border-radius: 4px;
+  font-size: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-reorder:active {
+  background: var(--accent-cyan);
+  color: #000;
+}
+
+/* ---------------------------------------------------------
+   Modal Dialog Styles
+   --------------------------------------------------------- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(5, 7, 12, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 1000;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-card {
+  background: #0f1422;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 340px;
+  padding: 20px;
+  box-shadow: var(--glass-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transform: scale(0.92);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-overlay.active .modal-card {
+  transform: scale(1);
+}
+
+.modal-card h3 {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+}
+
+.form-group input, .form-group select {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px;
+  color: #fff;
+  font-family: var(--font-family);
+  font-size: 0.8rem;
+  outline: none;
+}
+
+.form-group input:focus, .form-group select:focus {
+  border-color: var(--accent-cyan);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.modal-actions button {
+  flex: 1;
+  height: 38px;
+}
+
+/* ---------------------------------------------------------
+   Mouse Mode Toggle & Trackpad Styling
+   --------------------------------------------------------- */
+.mouse-mode-toggle {
+  display: flex;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.btn-toggle {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-family);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-toggle.active {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--accent-cyan);
+}
+
+.mouse-speed-container {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-top: -2px;
+  margin-bottom: 2px;
+}
+
+/* Trackpad Mode transition */
+.joystick-pad.trackpad-mode {
+  width: 100%;
+  height: 130px;
+  border-radius: 12px;
+  background: radial-gradient(circle, rgba(255,255,255,0.01) 0%, rgba(255,255,255,0.02) 80%, rgba(255,255,255,0.04) 100%);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.joystick-pad.trackpad-mode .joystick-handle {
+  display: none;
+}

@@ -195,23 +195,44 @@ class Launcher(Gtk.Window):
         outer_hbox.set_valign(Gtk.Align.CENTER)
         outer_vbox.pack_start(outer_hbox, True, True, 0)
 
-        grid = Gtk.Grid()
+        self.grid = Gtk.Grid()
         # Espacement proportionnel
         spacing_px = int(25 * ZOOM_GLOBAL)
-        grid.set_row_spacing(spacing_px)
-        grid.set_column_spacing(spacing_px)
-        grid.set_halign(Gtk.Align.CENTER)
-        grid.set_valign(Gtk.Align.CENTER)
-        outer_hbox.pack_start(grid, False, False, 0)
+        self.grid.set_row_spacing(spacing_px)
+        self.grid.set_column_spacing(spacing_px)
+        self.grid.set_halign(Gtk.Align.CENTER)
+        self.grid.set_valign(Gtk.Align.CENTER)
+        outer_hbox.pack_start(self.grid, False, False, 0)
 
-        cols = data["ui"].get("columns", 4)
+        self.populate_grid()
+        self.last_mtime = os.path.getmtime(DATA_PATH)
+        GLib.timeout_add(2000, self.check_data_changes)
+
+        close_btn = Gtk.Button(label="✕")
+        close_btn.set_name("close_btn")
+        close_btn.set_halign(Gtk.Align.END)
+        close_btn.set_valign(Gtk.Align.START)
+        close_btn.connect("clicked", lambda w: Gtk.main_quit())
+        self.overlay.add_overlay(close_btn)
         
-        # --- TAILLES OBJETS ---
-        # Base: 220px pour le bouton, 130px pour l'icône
+        self.show_all()
+        play_sound("intro")
+        GLib.timeout_add(100, self.start_animation)
+
+    def populate_grid(self):
+        # Clear existing grid children
+        for child in self.grid.get_children():
+            self.grid.remove(child)
+            
+        current_data = load_data()
+        ensure_icons(current_data)
+        
+        cols = current_data["ui"].get("columns", 4)
         tile_px = int(220 * ZOOM_GLOBAL)
         tile_height_px = int(130 * ZOOM_GLOBAL)
-
-        for i, app in enumerate(data["apps"]):
+        
+        self.first_btn = None
+        for i, app in enumerate(current_data["apps"]):
             btn = Gtk.Button()
             btn.set_size_request(tile_px, tile_px)
             btn.connect("clicked", lambda _b, a=app: launch_app(a))
@@ -241,19 +262,21 @@ class Launcher(Gtk.Window):
             box.pack_start(img, False, False, 0)
             box.pack_start(lbl, False, False, 0)
             btn.add(box)
-            grid.attach(btn, i % cols, i // cols, 1, 1)
+            self.grid.attach(btn, i % cols, i // cols, 1, 1)
+            
+        self.grid.show_all()
+        if self.first_btn and self.boot_finished: 
+            self.first_btn.grab_focus()
 
-        close_btn = Gtk.Button(label="✕")
-        close_btn.set_name("close_btn")
-        close_btn.set_halign(Gtk.Align.END)
-        close_btn.set_valign(Gtk.Align.START)
-        close_btn.connect("clicked", lambda w: Gtk.main_quit())
-        self.overlay.add_overlay(close_btn)
-        
-        self.show_all()
-        if self.first_btn: self.first_btn.grab_focus()
-        play_sound("intro")
-        GLib.timeout_add(100, self.start_animation)
+    def check_data_changes(self):
+        try:
+            mtime = os.path.getmtime(DATA_PATH)
+            if mtime > self.last_mtime:
+                self.last_mtime = mtime
+                self.populate_grid()
+        except Exception as e:
+            print("Erreur reload data.json:", e)
+        return True
 
     def start_animation(self):
         self.overlay.get_style_context().add_class("visible")
@@ -262,6 +285,7 @@ class Launcher(Gtk.Window):
 
     def enable_sounds(self):
         self.boot_finished = True
+        if self.first_btn: self.first_btn.grab_focus()
         return False
 
     def on_app_focus(self, widget, event):

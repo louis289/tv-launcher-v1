@@ -44,6 +44,7 @@
                 <option value="chrome">Chrome</option>
               </select>
               <button id="btn-open-url" class="btn btn-primary">Ouvrir</button>
+              <button id="btn-fav-url" class="btn btn-secondary" title="Épingler aux favoris">⭐</button>
             </div>
           </div>
         </div>
@@ -51,7 +52,10 @@
         <!-- App Grid Header -->
         <div class="section-title">
           <h2>Applications</h2>
-          <span class="badge" id="apps-count">0</span>
+          <div class="apps-header-actions">
+            <button id="btn-edit-mode" class="btn-icon-toggle" title="Mode Édition">✏️ Mode Édition</button>
+            <span class="badge" id="apps-count">0</span>
+          </div>
         </div>
 
         <!-- App Grid (Populated dynamically) -->
@@ -98,14 +102,24 @@
         <div class="card mouse-card">
           <div class="card-header">
             <h3>Contrôle du curseur</h3>
+            <div class="mouse-mode-toggle">
+              <button id="mode-joystick" class="btn-toggle active" data-mode="joystick">Stick</button>
+              <button id="mode-trackpad" class="btn-toggle" data-mode="trackpad">Pad</button>
+            </div>
           </div>
           
-          <!-- Virtual Joystick -->
+          <div class="slider-container mouse-speed-container">
+            <label for="mouse-speed">Vitesse :</label>
+            <input type="range" id="mouse-speed" min="1" max="10" value="5">
+            <span id="mouse-speed-val">5</span>
+          </div>
+          
+          <!-- Virtual Joystick / Trackpad Container -->
           <div class="joystick-container">
             <div class="joystick-pad" id="joystick-pad">
               <div class="joystick-handle" id="joystick-handle"></div>
             </div>
-            <div class="joystick-label">Faites glisser pour déplacer la souris</div>
+            <div class="joystick-label" id="mouse-control-label">Glissez pour déplacer la souris</div>
           </div>
 
           <!-- Mouse Click Buttons -->
@@ -259,6 +273,37 @@
         <span>Télécommande</span>
       </button>
     </nav>
+  </div>
+
+  <!-- MODAL DIALOG FOR APPS CMS (ADD / EDIT) -->
+  <div id="app-modal" class="modal-overlay">
+    <div class="modal-card">
+      <h3 id="modal-title">Ajouter aux Favoris</h3>
+      <input type="hidden" id="modal-app-id">
+      
+      <div class="form-group">
+        <label for="modal-app-name">Nom de l'application :</label>
+        <input type="text" id="modal-app-name" placeholder="Ex: GitHub, Wikipedia..." autocomplete="off">
+      </div>
+      
+      <div class="form-group">
+        <label for="modal-app-url">Adresse URL :</label>
+        <input type="url" id="modal-app-url" placeholder="https://example.com" autocomplete="off">
+      </div>
+      
+      <div class="form-group">
+        <label for="modal-app-browser">Navigateur :</label>
+        <select id="modal-app-browser">
+          <option value="firefox">Firefox (Kiosk)</option>
+          <option value="chrome">Chrome (Fullscreen)</option>
+        </select>
+      </div>
+      
+      <div class="modal-actions">
+        <button id="btn-modal-cancel" class="btn btn-secondary">Annuler</button>
+        <button id="btn-modal-save" class="btn btn-primary">Enregistrer</button>
+      </div>
+    </div>
   </div>
 
   <!-- SCRIPT -->

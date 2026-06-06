@@ -5,8 +5,15 @@ import subprocess
 import shlex
 import urllib.parse
 import sys
+import re
+import threading
+import urllib.request
+from html.parser import HTMLParser
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
+
+# Lock for data.json concurrency safety
+DATA_LOCK = threading.Lock()
 
 # ---------------------------------------------------------
 # Dual-compatibility Threading Server
@@ -23,6 +30,47 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(BASE_DIR, "web")
 ICONS_DIR = os.path.join(BASE_DIR, "icons")
 DATA_PATH = os.path.join(BASE_DIR, "data.json")
+
+# ---------------------------------------------------------
+# Web Icons Fetching Utilities
+# ---------------------------------------------------------
+class IconParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.icons = []
+    def handle_starttag(self, tag, attrs):
+        if tag.lower() != "link": return
+        attr = dict(attrs)
+        rel = attr.get("rel", "").lower()
+        href = attr.get("href")
+        if not href: return
+        if "apple-touch-icon" in rel: self.icons.append((0, href))
+        elif "icon" in rel: self.icons.append((1, href))
+
+def find_icon_url(page_url):
+    try:
+        req = urllib.request.Request(page_url, headers={"User-Agent": "Mozilla/5.0 TVLauncher"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            html = resp.read(200_000).decode("utf-8", errors="ignore")
+        parser = IconParser()
+        parser.feed(html)
+        if parser.icons:
+            parser.icons.sort(key=lambda x: x[0])
+            return urllib.parse.urljoin(page_url, parser.icons[0][1])
+    except: pass
+    p = urllib.parse.urlparse(page_url)
+    return f"{p.scheme}://{p.netloc}/favicon.ico"
+
+def download_icon(icon_url, out_path):
+    try:
+        req = urllib.request.Request(icon_url, headers={"User-Agent": "Mozilla/5.0 TVLauncher"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = resp.read(300_000)
+        if not data: return False
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        with open(out_path, "wb") as f: f.write(data)
+        return True
+    except: return False
 
 # ---------------------------------------------------------
 # X11 Display Environment Detection
@@ -95,6 +143,24 @@ def run_xdotool(cmd_args):
 # Sound Controls (PulseAudio / PipeWire / ALSA)
 # ---------------------------------------------------------
 def run_volume(action):
+    env = get_x11_env()
+    
+    # Assurer que XDG_RUNTIME_DIR est présent
+    if 'XDG_RUNTIME_DIR' not in env:
+        uid = "1000"
+        try:
+            import pwd
+            uid = str(pwd.getpwnam('ghiglione').pw_uid)
+        except Exception:
+            pass
+        env['XDG_RUNTIME_DIR'] = f'/run/user/{uid}'
+        
+    # Injecter PULSE_RUNTIME_PATH si le dossier pulse de l'utilisateur existe
+    uid = env['XDG_RUNTIME_DIR'].split('/')[-1]
+    pulse_path = f"/run/user/{uid}/pulse"
+    if os.path.exists(pulse_path):
+        env['PULSE_RUNTIME_PATH'] = pulse_path
+
     # Define volume steps or commands
     cmds = []
     if action == "up":
@@ -116,7 +182,7 @@ def run_volume(action):
     for cmd in cmds:
         try:
             # We try commands in sequence; if one returns 0, we exit successfully
-            res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            res = subprocess.run(cmd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             if res.returncode == 0:
                 return True
         except Exception:
@@ -316,6 +382,127 @@ class TVRemoteHandler(BaseHTTPRequestHandler):
             browser = body.get("browser", "firefox")
             if url:
                 success = launch_application({"type": "url", "url": url, "browser": browser})
+                
+        elif path == "/api/apps/add":
+            name = body.get("name", "Favori")
+            url = body.get("url")
+            browser = body.get("browser", "firefox")
+            if url:
+                app_id = re.sub(r'[^a-zA-Z0-9]+', '_', name.lower()).strip('_')
+                if not app_id: app_id = "custom_app"
+                
+                with DATA_LOCK:
+                    try:
+                        with open(DATA_PATH, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                            
+                        temp_id = app_id
+                        idx = 1
+                        while any(a.get("id") == temp_id for a in data.get("apps", [])):
+                            temp_id = f"{app_id}_{idx}"
+                            idx += 1
+                        app_id = temp_id
+                        
+                        icon_relative = f"icons/{app_id}.png"
+                        icon_full = os.path.join(BASE_DIR, icon_relative)
+                        
+                        icon_url = find_icon_url(url)
+                        download_icon(icon_url, icon_full)
+                        
+                        new_app = {
+                            "id": app_id,
+                            "name": name,
+                            "type": "url",
+                            "url": url,
+                            "browser": browser,
+                            "icon": icon_relative
+                        }
+                        
+                        data.setdefault("apps", []).append(new_app)
+                        with open(DATA_PATH, "w", encoding="utf-8") as f:
+                            json.dump(data, f, indent=2, ensure_ascii=False)
+                        success = True
+                    except Exception as e:
+                        print(f"Error adding app: {e}", file=sys.stderr)
+
+        elif path == "/api/apps/edit":
+            app_id = body.get("id")
+            name = body.get("name")
+            url = body.get("url")
+            browser = body.get("browser")
+            if app_id:
+                with DATA_LOCK:
+                    try:
+                        with open(DATA_PATH, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                            
+                        app = next((a for a in data.get("apps", []) if a.get("id") == app_id), None)
+                        if app:
+                            if name: app["name"] = name
+                            if url: app["url"] = url
+                            if browser: app["browser"] = browser
+                            if url and app.get("type") == "url":
+                                icon_relative = app.get("icon", f"icons/{app_id}.png")
+                                icon_full = os.path.join(BASE_DIR, icon_relative)
+                                icon_url = find_icon_url(url)
+                                download_icon(icon_url, icon_full)
+                                app["icon"] = icon_relative
+                            
+                            with open(DATA_PATH, "w", encoding="utf-8") as f:
+                                json.dump(data, f, indent=2, ensure_ascii=False)
+                            success = True
+                    except Exception as e:
+                        print(f"Error editing app: {e}", file=sys.stderr)
+
+        elif path == "/api/apps/delete":
+            app_id = body.get("id")
+            if app_id:
+                with DATA_LOCK:
+                    try:
+                        with open(DATA_PATH, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                            
+                        apps = data.get("apps", [])
+                        app = next((a for a in apps if a.get("id") == app_id), None)
+                        if app:
+                            icon_relative = app.get("icon", "")
+                            if icon_relative:
+                                icon_full = os.path.join(BASE_DIR, icon_relative)
+                                if os.path.exists(icon_full) and "icons/" in icon_relative:
+                                    try: os.remove(icon_full)
+                                    except: pass
+                                    
+                        data["apps"] = [a for a in apps if a.get("id") != app_id]
+                        with open(DATA_PATH, "w", encoding="utf-8") as f:
+                            json.dump(data, f, indent=2, ensure_ascii=False)
+                        success = True
+                    except Exception as e:
+                        print(f"Error deleting app: {e}", file=sys.stderr)
+
+        elif path == "/api/apps/reorder":
+            order = body.get("order", [])
+            if order:
+                with DATA_LOCK:
+                    try:
+                        with open(DATA_PATH, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                            
+                        apps = data.get("apps", [])
+                        apps_map = {a.get("id"): a for a in apps}
+                        
+                        new_apps = []
+                        for aid in order:
+                            if aid in apps_map:
+                                new_apps.append(apps_map[aid])
+                                del apps_map[aid]
+                        new_apps.extend(apps_map.values())
+                        
+                        data["apps"] = new_apps
+                        with open(DATA_PATH, "w", encoding="utf-8") as f:
+                            json.dump(data, f, indent=2, ensure_ascii=False)
+                        success = True
+                    except Exception as e:
+                        print(f"Error reordering apps: {e}", file=sys.stderr)
                 
         elif path == "/api/mouse/move":
             dx = body.get("dx", 0)
