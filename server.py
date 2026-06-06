@@ -208,14 +208,48 @@ def launch_app_by_id(app_id):
         
     return launch_application(app)
 
+def kill_browser(browser_name):
+    """Kill browser process and clean up profile lock files to prevent 'already running' errors."""
+    import glob, time
+    
+    # 1. Kill process
+    for sig in ["-TERM", "-KILL"]:
+        try:
+            subprocess.run(["pkill", sig, "-f", browser_name],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+    
+    # 2. Wait briefly for process to actually die
+    time.sleep(0.8)
+    
+    # 3. Remove Firefox profile lock files
+    if browser_name == "firefox":
+        lock_patterns = [
+            "/home/ghiglione/.mozilla/firefox/*/.parentlock",
+            "/home/ghiglione/.mozilla/firefox/*/lock",
+            "/tmp/firefox*",
+        ]
+        for pattern in lock_patterns:
+            for f in glob.glob(pattern):
+                try:
+                    os.remove(f)
+                    print(f"[LAUNCH] Supprimé verrou: {f}")
+                except Exception as ex:
+                    print(f"[WARNING] Impossible de supprimer {f}: {ex}", file=sys.stderr)
+
 def launch_application(app):
     try:
         env = get_x11_env()
         if app["type"] == "url":
             url = app["url"]
             if app.get("browser") == "chrome":
+                # Kill Chrome first to avoid "already running" issues
+                kill_browser("google-chrome")
                 cmd = f"google-chrome --new-window --start-fullscreen {url}"
             else:
+                # Kill Firefox first and remove lock files
+                kill_browser("firefox")
                 cmd = f"firefox --new-window --kiosk {url}"
             print(f"[LAUNCH] Ouverture URL: {url} dans {app.get('browser', 'firefox')}")
             subprocess.Popen(shlex.split(cmd), env=env)

@@ -139,6 +139,11 @@
       <!-- PANEL 3: TELECOMMANDE -->
       <section id="panel-remote" class="tab-panel">
         
+        <!-- Éteindre button positioned at the top right -->
+        <button class="btn btn-remote-action btn-danger-sys btn-power-top-right" onclick="showPowerModal()" title="Options d'alimentation">
+          <svg viewBox="0 0 24 24" style="width: 20px; height: 20px;"><path fill="currentColor" d="M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9S16.97,3,12,3z M12,19c-3.86,0-7-3.14-7-7s3.14-7,7-7s7,3.14,7,7S15.86,19,12,19z M11.5,6h1v6h-1V6z"/></svg>
+        </button>
+
         <!-- Centered D-Pad at the top -->
         <div class="dpad-top-container">
           <div class="dpad">
@@ -160,21 +165,18 @@
           </div>
         </div>
 
-        <!-- 2-Column Grid for main controls below D-Pad -->
+        <!-- 2-Column Grid (50/50 width) -->
         <div class="remote-grid-2col">
           
           <!-- Column 1: Left controls -->
           <div class="remote-col">
-            <button class="btn btn-remote-action btn-danger-sys" onclick="shutdownPC()" title="Éteindre le PC">
-              <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9S16.97,3,12,3z M12,19c-3.86,0-7-3.14-7-7s3.14-7,7-7s7,3.14,7,7S15.86,19,12,19z M11.5,6h1v6h-1V6z"/></svg>
-              <span>Éteindre PC</span>
-            </button>
-            
+            <!-- Row 1 Left: Multitâche -->
             <button class="btn btn-remote-action" onclick="sendDirectKey('Super_L')" title="Multitâche">
               <svg viewBox="0 0 24 24"><path fill="currentColor" d="M4 4H10V10H4V4M14 4H20V10H14V4M4 14H10V20H4V14M14 14H20V20H14V14Z"/></svg>
               <span>Multitâche</span>
             </button>
             
+            <!-- Row 2 Left: Zoom -->
             <div class="card remote-sub-card zoom-card">
               <h5>Zoom</h5>
               <div class="zoom-buttons-row">
@@ -193,6 +195,7 @@
 
           <!-- Column 2: Right controls -->
           <div class="remote-col">
+            <!-- Row 1 Right: Hyperion -->
             <div class="card remote-sub-card hyperion-card">
               <h5>Hyperion</h5>
               <div class="hyp-buttons-row">
@@ -201,6 +204,7 @@
               </div>
             </div>
             
+            <!-- Row 2 Right: Son -->
             <div class="card remote-sub-card volume-card">
               <h5>Son</h5>
               <div class="vol-buttons-row">

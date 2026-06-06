@@ -474,21 +474,39 @@ body {
 }
 
 /* PANEL 3: TELECOMMANDE */
-/* PANEL 3: TELECOMMANDE (D-Pad Right & 2-Column Grid Redesign) */
+#panel-remote {
+  position: relative;
+}
+
+.btn-power-top-right {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.dpad-top-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin-top: 10px;
+  margin-bottom: 25px;
+}
+
 .remote-grid-2col {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   align-items: flex-start;
   width: 100%;
-}
-
-.dpad-container-right {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  margin-bottom: 2px;
 }
 
 .zoom-buttons-row, .hyp-buttons-row, .vol-buttons-row {
