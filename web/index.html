@@ -138,13 +138,16 @@
 
       <!-- PANEL 3: TELECOMMANDE -->
       <section id="panel-remote" class="tab-panel">
-        
-        <!-- Éteindre button positioned at the top right -->
-        <button class="btn btn-remote-action btn-danger-sys btn-power-top-right" onclick="showPowerModal()" title="Options d'alimentation">
-          <svg viewBox="0 0 24 24" style="width: 20px; height: 20px;"><path fill="currentColor" d="M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9S16.97,3,12,3z M12,19c-3.86,0-7-3.14-7-7s3.14-7,7-7s7,3.14,7,7S15.86,19,12,19z M11.5,6h1v6h-1V6z"/></svg>
-        </button>
 
-        <!-- Centered D-Pad at the top -->
+        <!-- TOP BAR: Power button right-aligned -->
+        <div class="remote-top-bar">
+          <span class="remote-top-bar-title">Télécommande</span>
+          <button class="btn-power-circle" id="btn-power-open" onclick="showPowerModal()" title="Options d'alimentation">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M13,3h-2v10h2V3z M17.83,5.17l-1.42,1.42C17.99,7.86,19,9.81,19,12c0,3.87-3.13,7-7,7s-7-3.13-7-7c0-2.19,1.01-4.14,2.58-5.42L6.17,5.17C4.23,6.82,3,9.26,3,12c0,4.97,4.03,9,9,9s9-4.03,9-9C21,9.26,19.77,6.82,17.83,5.17z"/></svg>
+          </button>
+        </div>
+
+        <!-- D-PAD: centered, full width row -->
         <div class="dpad-top-container">
           <div class="dpad">
             <button class="dpad-btn dpad-up" aria-label="Haut" onclick="sendKey('Up')">

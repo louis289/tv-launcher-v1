@@ -474,22 +474,51 @@ body {
 }
 
 /* PANEL 3: TELECOMMANDE */
-#panel-remote {
-  position: relative;
+
+/* Top bar: title left, power button right */
+.remote-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 2px 0 4px 2px;
 }
 
-.btn-power-top-right {
-  position: absolute;
-  top: 4px;
-  right: 4px;
+.remote-top-bar-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Power button: circular, red glow */
+.btn-power-circle {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  padding: 0 !important;
-  display: flex !important;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1.5px solid rgba(239, 68, 68, 0.3);
+  color: var(--accent-red);
+  display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.btn-power-circle svg {
+  width: 22px;
+  height: 22px;
+}
+
+.btn-power-circle:active {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: var(--accent-red);
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.35);
+  transform: scale(0.93);
 }
 
 .dpad-top-container {
@@ -497,8 +526,7 @@ body {
   justify-content: center;
   align-items: center;
   width: 100%;
-  margin-top: 10px;
-  margin-bottom: 25px;
+  margin-bottom: 10px;
 }
 
 .remote-grid-2col {
