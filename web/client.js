@@ -9,8 +9,8 @@ const activeModifiers = {
 
 // State variables for CMS and Mouse modes
 let isEditMode = false;
-let mouseMode = 'joystick'; // 'joystick', 'trackpad', or 'gyro'
-let mouseSpeed = 5;         // Sensitivity multiplier (1 to 10)
+let mouseMode = 'trackpad'; // Default to 'trackpad'
+let mouseSpeed = 8;         // Default to 8
 let cachedApps = [];        // Local copy of apps list
 
 // Global hooks for gyro controls (assigned in initGyroscope)
@@ -479,22 +479,27 @@ function initJoystick() {
     if (!isDragging) return;
 
     // Check if scrolling with two fingers
-    if (isScrolling || (e.touches && e.touches.length === 2)) {
-      if (e.touches && e.touches.length === 2) {
-        const touchX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-        const touchY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-        
-        const dx = touchX - prevTouchX;
-        const dy = touchY - prevTouchY;
-        
-        const scrollThreshold = 12;
-        if (Math.abs(dy) > scrollThreshold) {
-          const direction = dy > 0 ? "down" : "up";
-          const clicks = Math.min(3, Math.max(1, Math.round(Math.abs(dy) / scrollThreshold)));
-          apiPost('/api/mouse/scroll', { direction: direction, clicks: clicks });
-          prevTouchX = touchX;
-          prevTouchY = touchY;
-        }
+    if (e.touches && e.touches.length === 2) {
+      const touchX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const touchY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      
+      if (!isScrolling) {
+        isScrolling = true;
+        prevTouchX = touchX;
+        prevTouchY = touchY;
+        return;
+      }
+      
+      const dx = touchX - prevTouchX;
+      const dy = touchY - prevTouchY;
+      
+      const scrollThreshold = 10;
+      if (Math.abs(dy) > scrollThreshold) {
+        const direction = dy > 0 ? "down" : "up";
+        const clicks = Math.min(3, Math.max(1, Math.round(Math.abs(dy) / scrollThreshold)));
+        apiPost('/api/mouse/scroll', { direction: direction, clicks: clicks });
+        prevTouchX = touchX;
+        prevTouchY = touchY;
       }
       return; // Skip normal cursor move
     }
@@ -621,6 +626,11 @@ function initJoystick() {
       apiPost('/api/mouse/move', { dx: moveX, dy: moveY });
     }
   }
+
+  // Set default mode and speed on load
+  speedSlider.value = mouseSpeed;
+  speedVal.textContent = mouseSpeed;
+  setMouseMode(mouseMode);
 }
 
 function initMouseButtons() {
@@ -791,15 +801,17 @@ function sendHyperion(action) {
   vibrate(30);
   
   // Set active buttons style for Hyperion toggle
-  const onBtn = document.querySelector('.btn-hyp.btn-on');
-  const offBtn = document.querySelector('.btn-hyp.btn-off');
+  const onBtn = document.querySelector('.btn-hyp-on');
+  const offBtn = document.querySelector('.btn-hyp-off');
   
-  if (action === 'on') {
-    onBtn.classList.add('active');
-    offBtn.classList.remove('active');
-  } else {
-    onBtn.classList.remove('active');
-    offBtn.classList.add('active');
+  if (onBtn && offBtn) {
+    if (action === 'on') {
+      onBtn.classList.add('active');
+      offBtn.classList.remove('active');
+    } else {
+      onBtn.classList.remove('active');
+      offBtn.classList.add('active');
+    }
   }
   
   apiPost('/api/hyperion', { action: action });
@@ -822,9 +834,14 @@ function sendMedia(action) {
 
 function shutdownPC() {
   vibrate([50, 100, 50]);
-  const confirmShutdown = confirm("Voulez-vous vraiment éteindre complètement le PC de la TV ?");
-  if (confirmShutdown) {
+  const action = confirm("Voulez-vous ÉTEINDRE le PC ? (OK = Éteindre, Annuler = Plus d'options...)");
+  if (action) {
     apiPost('/api/system/shutdown');
+  } else {
+    const actionReboot = confirm("Voulez-vous REDÉMARRER le PC ?");
+    if (actionReboot) {
+      apiPost('/api/system/reboot');
+    }
   }
 }
 
@@ -985,6 +1002,23 @@ function initMonitor() {
   
   if (!chkMonitor || !chkControl || !fpsSlider || !img) return;
 
+  // 0. Plein Écran listener
+  const btnFullscreen = document.getElementById('btn-monitor-fullscreen');
+  if (btnFullscreen) {
+    btnFullscreen.addEventListener('click', () => {
+      const monitorContainer = document.getElementById('live-monitor-container');
+      if (monitorContainer) {
+        if (!document.fullscreenElement) {
+          monitorContainer.requestFullscreen().catch(err => {
+            console.error(`Plein écran impossible: ${err.message}`);
+          });
+        } else {
+          document.exitFullscreen();
+        }
+      }
+    });
+  }
+
   // 1. Toggle Monitor Active
   chkMonitor.addEventListener('change', () => {
     if (chkMonitor.checked) {
@@ -1128,6 +1162,15 @@ window.addEventListener('keydown', (e) => {
   const activeEl = document.activeElement;
   if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT')) {
     return;
+  }
+  
+  // Respect Raccourcis TV switch: if unchecked, don't intercept modifiers combinations
+  const chkShortcuts = document.getElementById('chk-shortcuts-active');
+  const interceptShortcuts = chkShortcuts && chkShortcuts.checked;
+  const hasModifier = e.ctrlKey || e.altKey || e.metaKey;
+  
+  if (hasModifier && !interceptShortcuts) {
+    return; // Run shortcut on PC
   }
   
   // Mapping key strings to xdotool named keys

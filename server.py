@@ -280,27 +280,33 @@ def capture_screen():
     
     # Try scrot first (fast & silent)
     try:
-        res = subprocess.run(["scrot", "-z", "-o", tmp_file], env=env, capture_output=True)
+        res = subprocess.run(["scrot", "-z", "-o", tmp_file], env=env, capture_output=True, text=True)
         if res.returncode == 0 and os.path.exists(tmp_file):
             return tmp_file
-    except Exception:
-        pass
+        else:
+            print(f"[SCREENSHOT ERROR] scrot failed: code={res.returncode}, stderr={res.stderr.strip()}", file=sys.stderr)
+    except Exception as e:
+        print(f"[SCREENSHOT EXCEPTION] scrot exception: {e}", file=sys.stderr)
 
     # Try gnome-screenshot
     try:
-        res = subprocess.run(["gnome-screenshot", "-f", tmp_file], env=env, capture_output=True)
+        res = subprocess.run(["gnome-screenshot", "-f", tmp_file], env=env, capture_output=True, text=True)
         if res.returncode == 0 and os.path.exists(tmp_file):
             return tmp_file
-    except Exception:
-        pass
+        else:
+            print(f"[SCREENSHOT ERROR] gnome-screenshot failed: code={res.returncode}, stderr={res.stderr.strip()}", file=sys.stderr)
+    except Exception as e:
+        print(f"[SCREENSHOT EXCEPTION] gnome-screenshot exception: {e}", file=sys.stderr)
 
     # Try import (ImageMagick)
     try:
-        res = subprocess.run(["import", "-window", "root", tmp_file], env=env, capture_output=True)
+        res = subprocess.run(["import", "-window", "root", tmp_file], env=env, capture_output=True, text=True)
         if res.returncode == 0 and os.path.exists(tmp_file):
             return tmp_file
-    except Exception:
-        pass
+        else:
+            print(f"[SCREENSHOT ERROR] import failed: code={res.returncode}, stderr={res.stderr.strip()}", file=sys.stderr)
+    except Exception as e:
+        print(f"[SCREENSHOT EXCEPTION] import exception: {e}", file=sys.stderr)
         
     return None
 
@@ -638,8 +644,37 @@ class TVRemoteHandler(BaseHTTPRequestHandler):
             
         elif path == "/api/system/shutdown":
             print("[SYSTEM] Shutdown initiated by remote.", file=sys.stderr)
-            subprocess.Popen(["systemctl", "poweroff"])
-            success = True
+            success = False
+            for cmd in [["systemctl", "poweroff"], ["loginctl", "poweroff"], ["sudo", "poweroff"]]:
+                try:
+                    res = subprocess.run(cmd, capture_output=True, text=True)
+                    if res.returncode == 0:
+                        success = True
+                        break
+                    else:
+                        print(f"[SHUTDOWN ERROR] {cmd} failed: code={res.returncode}, stderr={res.stderr.strip()}", file=sys.stderr)
+                except Exception as e:
+                    print(f"[SHUTDOWN EXCEPTION] {cmd}: {e}", file=sys.stderr)
+            if not success:
+                subprocess.Popen(["systemctl", "poweroff"])
+                success = True
+                
+        elif path == "/api/system/reboot":
+            print("[SYSTEM] Reboot initiated by remote.", file=sys.stderr)
+            success = False
+            for cmd in [["systemctl", "reboot"], ["loginctl", "reboot"], ["sudo", "reboot"]]:
+                try:
+                    res = subprocess.run(cmd, capture_output=True, text=True)
+                    if res.returncode == 0:
+                        success = True
+                        break
+                    else:
+                        print(f"[REBOOT ERROR] {cmd} failed: code={res.returncode}, stderr={res.stderr.strip()}", file=sys.stderr)
+                except Exception as e:
+                    print(f"[REBOOT EXCEPTION] {cmd}: {e}", file=sys.stderr)
+            if not success:
+                subprocess.Popen(["systemctl", "reboot"])
+                success = True
             
         else:
             self.send_error(404, "Route API Non Trouvée")

@@ -82,6 +82,7 @@
           <div class="text-input-group">
             <input type="text" id="keyboard-text-input" placeholder="Tapez du texte ici..." autocomplete="off">
             <button id="btn-send-text" class="btn btn-primary">Envoyer</button>
+            <button class="btn btn-secondary" onclick="sendDirectKey('Return')" style="flex: 0 0 auto; min-width: 60px; font-size: 0.75rem;" title="Touche Entrée">Entrée</button>
           </div>
 
         </div>
@@ -138,11 +139,32 @@
       <!-- PANEL 3: TELECOMMANDE -->
       <section id="panel-remote" class="tab-panel">
         
-        <!-- 3-Column Grid for main controls -->
-        <div class="remote-grid">
+        <!-- Centered D-Pad at the top -->
+        <div class="dpad-top-container">
+          <div class="dpad">
+            <button class="dpad-btn dpad-up" aria-label="Haut" onclick="sendKey('Up')">
+              <svg viewBox="0 0 24 24"><path fill="currentColor" d="M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z"/></svg>
+            </button>
+            <button class="dpad-btn dpad-left" aria-label="Gauche" onclick="sendKey('Left')">
+              <svg viewBox="0 0 24 24"><path fill="currentColor" d="M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z"/></svg>
+            </button>
+            <button class="dpad-btn dpad-ok" aria-label="OK" onclick="sendKey('Return')">
+              <span>OK</span>
+            </button>
+            <button class="dpad-btn dpad-right" aria-label="Droite" onclick="sendKey('Right')">
+              <svg viewBox="0 0 24 24"><path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/></svg>
+            </button>
+            <button class="dpad-btn dpad-down" aria-label="Bas" onclick="sendKey('Down')">
+              <svg viewBox="0 0 24 24"><path fill="currentColor" d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- 2-Column Grid for main controls below D-Pad -->
+        <div class="remote-grid-2col">
           
           <!-- Column 1: Left controls -->
-          <div class="remote-col remote-col-left">
+          <div class="remote-col">
             <button class="btn btn-remote-action btn-danger-sys" onclick="shutdownPC()" title="Éteindre le PC">
               <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9S16.97,3,12,3z M12,19c-3.86,0-7-3.14-7-7s3.14-7,7-7s7,3.14,7,7S15.86,19,12,19z M11.5,6h1v6h-1V6z"/></svg>
               <span>Éteindre PC</span>
@@ -155,46 +177,25 @@
             
             <div class="card remote-sub-card zoom-card">
               <h5>Zoom</h5>
-              <button class="btn btn-vol" onclick="sendZoom('in')" aria-label="Zoom +">
-                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
-              </button>
-              <button class="btn btn-vol btn-zoom-reset" onclick="sendZoom('reset')" aria-label="Resserrer Zoom">
-                Reset
-              </button>
-              <button class="btn btn-vol" onclick="sendZoom('out')" aria-label="Zoom -">
-                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19,13H5V11H19V13Z"/></svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Column 2: Center (D-Pad Navigation) -->
-          <div class="remote-col remote-col-center">
-            <div class="dpad-container">
-              <div class="dpad">
-                <button class="dpad-btn dpad-up" aria-label="Haut" onclick="sendKey('Up')">
-                  <svg viewBox="0 0 24 24"><path fill="currentColor" d="M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z"/></svg>
+              <div class="zoom-buttons-row">
+                <button class="btn btn-vol" onclick="sendZoom('in')" aria-label="Zoom +">
+                  <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
                 </button>
-                <button class="dpad-btn dpad-left" aria-label="Gauche" onclick="sendKey('Left')">
-                  <svg viewBox="0 0 24 24"><path fill="currentColor" d="M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z"/></svg>
+                <button class="btn btn-vol btn-zoom-reset" onclick="sendZoom('reset')" aria-label="Resserrer Zoom">
+                  Reset
                 </button>
-                <button class="dpad-btn dpad-ok" aria-label="OK" onclick="sendKey('Return')">
-                  <span>OK</span>
-                </button>
-                <button class="dpad-btn dpad-right" aria-label="Droite" onclick="sendKey('Right')">
-                  <svg viewBox="0 0 24 24"><path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/></svg>
-                </button>
-                <button class="dpad-btn dpad-down" aria-label="Bas" onclick="sendKey('Down')">
-                  <svg viewBox="0 0 24 24"><path fill="currentColor" d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"/></svg>
+                <button class="btn btn-vol" onclick="sendZoom('out')" aria-label="Zoom -">
+                  <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19,13H5V11H19V13Z"/></svg>
                 </button>
               </div>
             </div>
           </div>
 
-          <!-- Column 3: Right controls -->
-          <div class="remote-col remote-col-right">
+          <!-- Column 2: Right controls -->
+          <div class="remote-col">
             <div class="card remote-sub-card hyperion-card">
               <h5>Hyperion</h5>
-              <div class="hyp-buttons-col">
+              <div class="hyp-buttons-row">
                 <button class="btn btn-vol btn-hyp-on" onclick="sendHyperion('on')">ON</button>
                 <button class="btn btn-vol btn-hyp-off" onclick="sendHyperion('off')">OFF</button>
               </div>
@@ -202,15 +203,17 @@
             
             <div class="card remote-sub-card volume-card">
               <h5>Son</h5>
-              <button class="btn btn-vol" onclick="sendVolume('up')" aria-label="Volume +">
-                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
-              </button>
-              <button class="btn btn-vol" onclick="sendVolume('mute')" aria-label="Sourdine">
-                <svg id="vol-mute-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12,4L9.91,6.09L12,8.18M19,12C19,14.43 17.6,16.53 15.5,17.5L16.96,18.97C19.46,17.33 21,14.85 21,12C21,7.3 17.6,3.35 13,2.4L13,4.4C16.5,5.3 19,8.35 19,12M3.27,3L2,4.27L7.73,10H3V14H7L12,19V14.27L16.58,18.85C15.5,19.68 14.3,20.27 13,20.46V22.48C14.83,22.27 16.5,21.36 17.82,20.1L20.73,23L22,21.73L3.27,3M12,5.5L9.91,7.59L12,9.68V5.5Z"/></svg>
-              </button>
-              <button class="btn btn-vol" onclick="sendVolume('down')" aria-label="Volume -">
-                <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19,13H5V11H19V13Z"/></svg>
-              </button>
+              <div class="vol-buttons-row">
+                <button class="btn btn-vol" onclick="sendVolume('up')" aria-label="Volume +">
+                  <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
+                </button>
+                <button class="btn btn-vol" onclick="sendVolume('mute')" aria-label="Sourdine">
+                  <svg id="vol-mute-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12,4L9.91,6.09L12,8.18M19,12C19,14.43 17.6,16.53 15.5,17.5L16.96,18.97C19.46,17.33 21,14.85 21,12C21,7.3 17.6,3.35 13,2.4L13,4.4C16.5,5.3 19,8.35 19,12M3.27,3L2,4.27L7.73,10H3V14H7L12,19V14.27L16.58,18.85C15.5,19.68 14.3,20.27 13,20.46V22.48C14.83,22.27 16.5,21.36 17.82,20.1L20.73,23L22,21.73L3.27,3M12,5.5L9.91,7.59L12,9.68V5.5Z"/></svg>
+                </button>
+                <button class="btn btn-vol" onclick="sendVolume('down')" aria-label="Volume -">
+                  <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19,13H5V11H19V13Z"/></svg>
+                </button>
+              </div>
             </div>
           </div>
           
@@ -268,6 +271,7 @@
       <div class="monitor-title-bar">
         <span class="monitor-dot"></span>
         <h2>Moniteur TV en Direct</h2>
+        <button class="btn-icon-toggle" id="btn-monitor-fullscreen" title="Plein Écran" style="margin-left: 10px; font-size: 0.7rem; padding: 3px 6px; display: inline-flex; align-items: center; gap: 4px;">🖥️ Plein Écran</button>
       </div>
       <div class="monitor-controls">
         <div class="monitor-control-item">
@@ -281,6 +285,13 @@
           <span>Contrôle Live</span>
           <label class="switch">
             <input type="checkbox" id="chk-control-active">
+            <span class="slider-round"></span>
+          </label>
+        </div>
+        <div class="monitor-control-item">
+          <span>Raccourcis TV</span>
+          <label class="switch">
+            <input type="checkbox" id="chk-shortcuts-active">
             <span class="slider-round"></span>
           </label>
         </div>
