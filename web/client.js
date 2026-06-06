@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initUrlLauncher();
   initAppsCMS(); // Initialize Modal & Edit Mode triggers
   initMonitor(); // Initialize live TV screen monitor
+  initPowerModal(); // Initialize Power Modal buttons
   
   // Connection status loop
   checkStatus();
@@ -274,6 +275,7 @@ function initKeyboard() {
   const textInput = document.getElementById('keyboard-text-input');
   const sendBtn = document.getElementById('btn-send-text');
   const modifierBtns = document.querySelectorAll('.btn-modifier');
+  const virtualEnterBtn = document.getElementById('btn-virtual-enter');
   
   // Text submission
   sendBtn.addEventListener('click', () => {
@@ -293,6 +295,19 @@ function initKeyboard() {
       sendBtn.click();
     }
   });
+
+  if (virtualEnterBtn) {
+    virtualEnterBtn.addEventListener('click', () => {
+      const text = textInput.value;
+      if (text) {
+        vibrate(20);
+        apiPost('/api/keyboard/type', { text: text });
+        textInput.value = '';
+        resetModifiers();
+      }
+      sendDirectKey('Return');
+    });
+  }
   
   // Modifier key buttons (Ctrl, Alt, Win toggles)
   modifierBtns.forEach(btn => {
@@ -832,16 +847,50 @@ function sendMedia(action) {
   apiPost('/api/media', { action: action });
 }
 
-function shutdownPC() {
-  vibrate([50, 100, 50]);
-  const action = confirm("Voulez-vous ÉTEINDRE le PC ? (OK = Éteindre, Annuler = Plus d'options...)");
-  if (action) {
+function initPowerModal() {
+  const powerModal = document.getElementById('power-modal');
+  const btnShutdown = document.getElementById('btn-power-shutdown');
+  const btnReboot = document.getElementById('btn-power-reboot');
+  const btnCancel = document.getElementById('btn-power-cancel');
+  
+  if (!powerModal || !btnShutdown || !btnReboot || !btnCancel) return;
+  
+  btnShutdown.addEventListener('click', () => {
+    vibrate([50, 100, 50]);
     apiPost('/api/system/shutdown');
-  } else {
-    const actionReboot = confirm("Voulez-vous REDÉMARRER le PC ?");
-    if (actionReboot) {
-      apiPost('/api/system/reboot');
+    hidePowerModal();
+  });
+  
+  btnReboot.addEventListener('click', () => {
+    vibrate([30, 80, 30]);
+    apiPost('/api/system/reboot');
+    hidePowerModal();
+  });
+  
+  btnCancel.addEventListener('click', () => {
+    hidePowerModal();
+  });
+  
+  powerModal.addEventListener('click', (e) => {
+    if (e.target.id === 'power-modal') {
+      hidePowerModal();
     }
+  });
+}
+
+function showPowerModal() {
+  vibrate(20);
+  const powerModal = document.getElementById('power-modal');
+  if (powerModal) {
+    powerModal.classList.add('active');
+  }
+}
+
+function hidePowerModal() {
+  vibrate(10);
+  const powerModal = document.getElementById('power-modal');
+  if (powerModal) {
+    powerModal.classList.remove('active');
   }
 }
 

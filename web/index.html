@@ -82,8 +82,8 @@
           <div class="text-input-group">
             <input type="text" id="keyboard-text-input" placeholder="Tapez du texte ici..." autocomplete="off">
             <button id="btn-send-text" class="btn btn-primary">Envoyer</button>
-            <button class="btn btn-secondary" onclick="sendDirectKey('Return')" style="flex: 0 0 auto; min-width: 60px; font-size: 0.75rem;" title="Touche Entrée">Entrée</button>
           </div>
+          <button id="btn-virtual-enter" class="btn btn-secondary" style="width: 100%; margin-top: 6px;" title="Touche Entrée">Entrée</button>
 
         </div>
 
@@ -343,6 +343,22 @@
       <div class="modal-actions">
         <button id="btn-modal-cancel" class="btn btn-secondary">Annuler</button>
         <button id="btn-modal-save" class="btn btn-primary">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- POWER MODAL DIALOG (SHUTDOWN / REBOOT / CANCEL) -->
+  <div id="power-modal" class="modal-overlay">
+    <div class="modal-card">
+      <h3>Contrôle d'Alimentation</h3>
+      <p style="font-size: 0.8rem; color: var(--text-secondary); text-align: center; margin-bottom: 5px;">
+        Choisissez une action pour le PC de la TV :
+      </p>
+      
+      <div class="modal-actions" style="flex-direction: column; gap: 8px;">
+        <button id="btn-power-shutdown" class="btn btn-primary btn-danger-sys" style="width: 100%; height: 42px; justify-content: center;">🔴 Éteindre le PC</button>
+        <button id="btn-power-reboot" class="btn btn-secondary" style="width: 100%; height: 42px; border-color: rgba(255,255,255,0.1); justify-content: center;">🔄 Redémarrer</button>
+        <button id="btn-power-cancel" class="btn btn-secondary" style="width: 100%; height: 42px; border-color: rgba(255,255,255,0.1); justify-content: center;">Annuler</button>
       </div>
     </div>
   </div>
