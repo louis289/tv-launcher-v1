@@ -733,6 +733,15 @@ input:checked + .slider-round:before {
   transform: scale(0.97);
 }
 
+.btn-danger-sys svg {
+  color: var(--accent-red);
+}
+
+.btn-danger-sys:active {
+  background: rgba(239, 68, 68, 0.08) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
 /* Playback Controls */
 .media-controls-row {
   display: flex;

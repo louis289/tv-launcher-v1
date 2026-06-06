@@ -331,6 +331,15 @@ function sendKey(keyName) {
   resetModifiers();
 }
 
+// Send keyboard shortcut directly (without active modifier toggles state)
+function sendDirectKey(keyName, modifiers = []) {
+  vibrate(20);
+  apiPost('/api/keyboard/key', {
+    key: keyName,
+    modifiers: modifiers
+  });
+}
+
 // ---------------------------------------------------------
 // Panel 2: Mouse Joystick Pointer Controller
 // ---------------------------------------------------------
