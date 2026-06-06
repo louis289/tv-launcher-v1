@@ -678,37 +678,55 @@ class TVRemoteHandler(BaseHTTPRequestHandler):
             
         elif path == "/api/system/shutdown":
             print("[SYSTEM] Shutdown initiated by remote.", file=sys.stderr)
-            success = False
-            for cmd in [["systemctl", "poweroff"], ["loginctl", "poweroff"], ["sudo", "poweroff"]]:
-                try:
-                    res = subprocess.run(cmd, capture_output=True, text=True)
-                    if res.returncode == 0:
-                        success = True
-                        break
-                    else:
-                        print(f"[SHUTDOWN ERROR] {cmd} failed: code={res.returncode}, stderr={res.stderr.strip()}", file=sys.stderr)
-                except Exception as e:
-                    print(f"[SHUTDOWN EXCEPTION] {cmd}: {e}", file=sys.stderr)
-            if not success:
-                subprocess.Popen(["systemctl", "poweroff"])
-                success = True
-                
+            # Send success response FIRST so client gets it before machine dies
+            self.send_json({"success": True})
+            # Try all shutdown methods in order of preference
+            shutdown_cmds = [
+                ["sudo", "-n", "systemctl", "poweroff"],
+                ["sudo", "-n", "shutdown", "-h", "now"],
+                ["sudo", "-n", "halt", "-p"],
+                ["systemctl", "poweroff"],
+                ["loginctl", "poweroff"],
+                ["shutdown", "-h", "now"],
+            ]
+            def do_shutdown():
+                for cmd in shutdown_cmds:
+                    try:
+                        res = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+                        if res.returncode == 0:
+                            print(f"[SYSTEM] Shutdown via {cmd}", file=sys.stderr)
+                            return
+                        print(f"[SHUTDOWN] {cmd} -> code={res.returncode} {res.stderr.strip()}", file=sys.stderr)
+                    except Exception as e:
+                        print(f"[SHUTDOWN] {cmd} exception: {e}", file=sys.stderr)
+                print("[SHUTDOWN ERROR] All methods failed!", file=sys.stderr)
+            threading.Thread(target=do_shutdown, daemon=True).start()
+            return
+
         elif path == "/api/system/reboot":
             print("[SYSTEM] Reboot initiated by remote.", file=sys.stderr)
-            success = False
-            for cmd in [["systemctl", "reboot"], ["loginctl", "reboot"], ["sudo", "reboot"]]:
-                try:
-                    res = subprocess.run(cmd, capture_output=True, text=True)
-                    if res.returncode == 0:
-                        success = True
-                        break
-                    else:
-                        print(f"[REBOOT ERROR] {cmd} failed: code={res.returncode}, stderr={res.stderr.strip()}", file=sys.stderr)
-                except Exception as e:
-                    print(f"[REBOOT EXCEPTION] {cmd}: {e}", file=sys.stderr)
-            if not success:
-                subprocess.Popen(["systemctl", "reboot"])
-                success = True
+            self.send_json({"success": True})
+            reboot_cmds = [
+                ["sudo", "-n", "systemctl", "reboot"],
+                ["sudo", "-n", "shutdown", "-r", "now"],
+                ["sudo", "-n", "reboot"],
+                ["systemctl", "reboot"],
+                ["loginctl", "reboot"],
+                ["shutdown", "-r", "now"],
+            ]
+            def do_reboot():
+                for cmd in reboot_cmds:
+                    try:
+                        res = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+                        if res.returncode == 0:
+                            print(f"[SYSTEM] Reboot via {cmd}", file=sys.stderr)
+                            return
+                        print(f"[REBOOT] {cmd} -> code={res.returncode} {res.stderr.strip()}", file=sys.stderr)
+                    except Exception as e:
+                        print(f"[REBOOT] {cmd} exception: {e}", file=sys.stderr)
+                print("[REBOOT ERROR] All methods failed!", file=sys.stderr)
+            threading.Thread(target=do_reboot, daemon=True).start()
+            return
             
         else:
             self.send_error(404, "Route API Non Trouvée")
