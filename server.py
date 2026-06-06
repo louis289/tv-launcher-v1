@@ -169,8 +169,11 @@ def launch_application(app):
 def control_hyperion(action):
     env = get_x11_env()
     if action == "on":
-        cmd = "bash -c 'killall hyperiond; env DISPLAY=:0 XAUTHORITY=/home/ghiglione/.Xauthority nohup /bin/hyperiond > /dev/null 2>&1 &'"
-        print("[HYPERION] Démarrage du service")
+        display = env.get('DISPLAY', ':0')
+        xauth = env.get('XAUTHORITY', '/home/ghiglione/.Xauthority')
+        # Utilise les variables d'environnement détectées dynamiquement au lieu de valeurs en dur
+        cmd = f"bash -c 'killall hyperiond; env DISPLAY={display} XAUTHORITY={xauth} nohup /bin/hyperiond > /dev/null 2>&1 &'"
+        print(f"[HYPERION] Démarrage du service (DISPLAY={display}, XAUTHORITY={xauth})")
         subprocess.Popen(cmd, shell=True, env=env)
         return True
     elif action == "off":
