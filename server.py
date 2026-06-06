@@ -55,8 +55,12 @@ def run_xdotool(cmd_args):
     env = get_x11_env()
     full_cmd = ["xdotool"] + cmd_args
     try:
-        subprocess.run(full_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
-        return True
+        res = subprocess.run(full_cmd, capture_output=True, text=True, env=env)
+        if res.returncode == 0:
+            return True
+        else:
+            print(f"[ERROR] Échec xdotool {cmd_args}. code={res.returncode}, env={dict(DISPLAY=env.get('DISPLAY'), XAUTHORITY=env.get('XAUTHORITY'))}, stderr={res.stderr.strip()}", file=sys.stderr)
+            return False
     except FileNotFoundError:
         print("[ERROR] 'xdotool' n'est pas installé sur le système Ubuntu.", file=sys.stderr)
         print("[TUTO] Installez-le en exécutant : sudo apt install -y xdotool", file=sys.stderr)
