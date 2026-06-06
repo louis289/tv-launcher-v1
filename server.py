@@ -517,6 +517,13 @@ class TVRemoteHandler(BaseHTTPRequestHandler):
             click_num = "1" if btn == "left" else "3"
             success = run_xdotool(["click", click_num])
             
+        elif path == "/api/mouse/scroll":
+            direction = body.get("direction", "down")
+            clicks = body.get("clicks", 1)
+            btn_map = {"up": "4", "down": "5", "left": "6", "right": "7"}
+            btn = btn_map.get(direction, "5")
+            success = run_xdotool(["click", "--repeat", str(clicks), btn])
+            
         elif path == "/api/keyboard/key":
             key = body.get("key")
             mods = body.get("modifiers", [])
@@ -558,6 +565,11 @@ class TVRemoteHandler(BaseHTTPRequestHandler):
             
         elif path == "/api/fullscreen":
             success = run_xdotool(["key", "F11"])
+            
+        elif path == "/api/system/shutdown":
+            print("[SYSTEM] Shutdown initiated by remote.", file=sys.stderr)
+            subprocess.Popen(["systemctl", "poweroff"])
+            success = True
             
         else:
             self.send_error(404, "Route API Non Trouvée")

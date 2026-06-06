@@ -367,6 +367,11 @@ function initJoystick() {
   let prevX = 0;
   let prevY = 0;
 
+  // Touch scroll state
+  let prevTouchX = 0;
+  let prevTouchY = 0;
+  let isScrolling = false;
+
   // Tap detection variables
   let touchStartX = 0;
   let touchStartY = 0;
@@ -443,6 +448,15 @@ function initJoystick() {
     lastY = clientY;
     touchStartTime = Date.now();
     hasMoved = false;
+
+    // Two-finger scroll detection
+    if (e.touches && e.touches.length === 2) {
+      prevTouchX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      prevTouchY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      isScrolling = true;
+    } else {
+      isScrolling = false;
+    }
     
     if (mouseMode === 'trackpad') {
       prevX = clientX;
@@ -462,6 +476,27 @@ function initJoystick() {
 
   const onDragMove = (e) => {
     if (!isDragging) return;
+
+    // Check if scrolling with two fingers
+    if (isScrolling || (e.touches && e.touches.length === 2)) {
+      if (e.touches && e.touches.length === 2) {
+        const touchX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const touchY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        
+        const dx = touchX - prevTouchX;
+        const dy = touchY - prevTouchY;
+        
+        const scrollThreshold = 12;
+        if (Math.abs(dy) > scrollThreshold) {
+          const direction = dy > 0 ? "down" : "up";
+          const clicks = Math.min(3, Math.max(1, Math.round(Math.abs(dy) / scrollThreshold)));
+          apiPost('/api/mouse/scroll', { direction: direction, clicks: clicks });
+          prevTouchX = touchX;
+          prevTouchY = touchY;
+        }
+      }
+      return; // Skip normal cursor move
+    }
     
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -783,6 +818,15 @@ function sendMedia(action) {
   vibrate(20);
   apiPost('/api/media', { action: action });
 }
+
+function shutdownPC() {
+  vibrate([50, 100, 50]);
+  const confirmShutdown = confirm("Voulez-vous vraiment éteindre complètement le PC de la TV ?");
+  if (confirmShutdown) {
+    apiPost('/api/system/shutdown');
+  }
+}
+
 
 // ---------------------------------------------------------
 // Panel 1: Apps CMS (Add, Edit, Delete, Reorder)

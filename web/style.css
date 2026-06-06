@@ -474,29 +474,156 @@ body {
 }
 
 /* PANEL 3: TELECOMMANDE */
-.remote-layout {
+/* PANEL 3: TELECOMMANDE (New 3-Column Redesign) */
+.remote-grid {
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
+  grid-template-columns: 1fr 1.25fr 1fr;
   gap: 10px;
+  align-items: stretch;
 }
 
-.remote-section-dpad {
+.remote-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: flex-start;
+}
+
+.remote-col-center {
+  justify-content: center;
+  align-items: center;
+}
+
+/* Action button for Quit and Multitask */
+.btn-remote-action {
+  height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-remote-action svg {
+  width: 16px;
+  height: 16px;
+  color: var(--accent-cyan);
+}
+
+.btn-remote-action span {
+  font-size: 0.62rem;
+}
+
+.btn-remote-action:active {
+  background: var(--bg-card-active);
+  transform: scale(0.97);
+}
+
+/* Red Quit Button styling */
+.btn-remote-action.btn-danger-sys svg {
+  color: var(--accent-red);
+}
+
+.btn-remote-action.btn-danger-sys:active {
+  background: rgba(239, 68, 68, 0.08) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+/* Sub-card inside Column */
+.remote-sub-card {
+  padding: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.remote-sub-card h5 {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 2px;
+  text-align: center;
+}
+
+/* Volume control inside card */
+.btn-vol {
+  width: 100%;
+  height: 32px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
 }
 
+.btn-vol svg {
+  width: 15px;
+  height: 15px;
+}
+
+.btn-vol:active {
+  color: var(--accent-cyan);
+  background: var(--bg-card-active);
+}
+
+/* Zoom reset custom text style */
+.btn-zoom-reset {
+  font-size: 0.6rem !important;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* Hyperion buttons layout inside card */
+.hyp-buttons-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.btn-hyp-on:active {
+  background: rgba(16, 185, 129, 0.1) !important;
+  color: var(--accent-green) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.btn-hyp-off:active {
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: var(--accent-red) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+/* D-PAD Container and sizing */
 .dpad-container {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* D-PAD */
 .dpad {
   position: relative;
-  width: 130px;
-  height: 130px;
+  width: 125px;
+  height: 125px;
   background: rgba(255, 255, 255, 0.01);
   border: 1.5px solid var(--border-color);
   border-radius: 50%;
@@ -519,22 +646,22 @@ body {
 }
 
 .dpad-btn svg {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
 }
 
 .dpad-btn:active {
   color: var(--accent-cyan);
 }
 
-.dpad-up { top: 0; left: 50%; transform: translateX(-50%); width: 60px; height: 38px; }
-.dpad-down { bottom: 0; left: 50%; transform: translateX(-50%); width: 60px; height: 38px; }
-.dpad-left { left: 0; top: 50%; transform: translateY(-50%); width: 38px; height: 60px; }
-.dpad-right { right: 0; top: 50%; transform: translateY(-50%); width: 38px; height: 60px; }
+.dpad-up { top: 0; left: 50%; transform: translateX(-50%); width: 60px; height: 36px; }
+.dpad-down { bottom: 0; left: 50%; transform: translateX(-50%); width: 60px; height: 36px; }
+.dpad-left { left: 0; top: 50%; transform: translateY(-50%); width: 36px; height: 60px; }
+.dpad-right { right: 0; top: 50%; transform: translateY(-50%); width: 36px; height: 60px; }
 
 .dpad-ok {
-  width: 50px;
-  height: 50px;
+  width: 46px;
+  height: 46px;
   background: linear-gradient(135deg, #161e2d 0%, #0a0d16 100%);
   border: 1.5px solid var(--border-color);
   border-radius: 50%;
@@ -550,71 +677,40 @@ body {
   color: var(--accent-cyan);
 }
 
-.remote-section-controls {
+/* Bottom remote card */
+.remote-bottom-card {
+  margin-top: 10px;
   display: flex;
   flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+}
+
+.system-controls-row {
+  display: flex;
   gap: 8px;
 }
 
-.sub-card {
-  padding: 8px;
-  gap: 4px;
-  border-radius: 10px;
+.btn-bottom-action {
+  flex: 1.2;
 }
 
-.volume-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: center;
-}
-
-.btn-vol {
-  width: 100%;
-  height: 32px;
-  padding: 0;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-}
-
-.btn-vol svg {
-  width: 16px;
-  height: 16px;
-}
-
-.btn-vol:active {
-  color: var(--accent-cyan);
-  background: var(--bg-card-active);
-}
-
-.toggle-group {
-  display: flex;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid var(--border-color);
-  background: rgba(0,0,0,0.1);
-}
-
-.btn-hyp {
+/* Red Power Off Button */
+.btn-shutdown {
   flex: 1;
-  height: 30px;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 0.7rem;
-  font-weight: 700;
-  cursor: pointer;
+  background: rgba(239, 68, 68, 0.03) !important;
+  border-color: rgba(239, 68, 68, 0.15) !important;
 }
 
-.btn-hyp.btn-on.active {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--accent-green);
+.btn-shutdown svg {
+  color: var(--accent-red) !important;
 }
 
-.btn-hyp.btn-off.active {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--accent-red);
+.btn-shutdown:active {
+  background: var(--accent-red) !important;
+  color: #fff !important;
+  transform: scale(0.97);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
 }
 
 /* Gyroscope Card */
