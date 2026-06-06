@@ -30,6 +30,37 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(BASE_DIR, "web")
 ICONS_DIR = os.path.join(BASE_DIR, "icons")
 DATA_PATH = os.path.join(BASE_DIR, "data.json")
+ENV_PATH = os.path.join(BASE_DIR, ".env")
+
+# ---------------------------------------------------------
+# Load .env file (SUDO_PASSWORD, etc.)
+# ---------------------------------------------------------
+def load_env(path):
+    """Parse a simple KEY=VALUE .env file into a dict."""
+    env = {}
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                if '=' in line:
+                    key, _, val = line.partition('=')
+                    env[key.strip()] = val.strip()
+    except FileNotFoundError:
+        print(f"[ENV] Fichier .env introuvable : {path}", file=sys.stderr)
+    except Exception as e:
+        print(f"[ENV] Erreur lecture .env : {e}", file=sys.stderr)
+    return env
+
+APP_ENV = load_env(ENV_PATH)
+SUDO_PASSWORD = APP_ENV.get('SUDO_PASSWORD', '')
+
+if SUDO_PASSWORD:
+    print(f"[ENV] Mot de passe sudo chargé depuis .env ✓")
+else:
+    print(f"[ENV] ATTENTION : SUDO_PASSWORD absent du .env — éteindre/redémarrer nécessite sudo sans mdp", file=sys.stderr)
+
 
 # ---------------------------------------------------------
 # Web Icons Fetching Utilities
@@ -678,53 +709,93 @@ class TVRemoteHandler(BaseHTTPRequestHandler):
             
         elif path == "/api/system/shutdown":
             print("[SYSTEM] Shutdown initiated by remote.", file=sys.stderr)
-            # Send success response FIRST so client gets it before machine dies
+            # Send success FIRST so client receives it before machine cuts power
             self.send_json({"success": True})
-            # Try all shutdown methods in order of preference
-            shutdown_cmds = [
-                ["sudo", "-n", "systemctl", "poweroff"],
-                ["sudo", "-n", "shutdown", "-h", "now"],
-                ["sudo", "-n", "halt", "-p"],
-                ["systemctl", "poweroff"],
-                ["loginctl", "poweroff"],
-                ["shutdown", "-h", "now"],
-            ]
+
             def do_shutdown():
-                for cmd in shutdown_cmds:
+                import time
+                time.sleep(0.3)  # Small delay to ensure response is sent
+                pwd = SUDO_PASSWORD
+                # Commands to try in order
+                cmds_with_password = [
+                    (["sudo", "-S", "systemctl", "poweroff"], pwd),
+                    (["sudo", "-S", "shutdown", "-h", "now"], pwd),
+                    (["sudo", "-S", "halt", "-p"], pwd),
+                ]
+                cmds_no_password = [
+                    ["systemctl", "poweroff"],
+                    ["loginctl", "poweroff"],
+                    ["shutdown", "-h", "now"],
+                ]
+                for cmd, password in cmds_with_password:
                     try:
-                        res = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+                        res = subprocess.run(
+                            cmd,
+                            input=(password + "\n") if password else "",
+                            capture_output=True, text=True, timeout=10
+                        )
                         if res.returncode == 0:
-                            print(f"[SYSTEM] Shutdown via {cmd}", file=sys.stderr)
+                            print(f"[SYSTEM] Shutdown OK via {cmd}", file=sys.stderr)
                             return
-                        print(f"[SHUTDOWN] {cmd} -> code={res.returncode} {res.stderr.strip()}", file=sys.stderr)
+                        print(f"[SHUTDOWN] {cmd} -> code={res.returncode} {res.stderr.strip()[:80]}", file=sys.stderr)
+                    except Exception as e:
+                        print(f"[SHUTDOWN] {cmd} exception: {e}", file=sys.stderr)
+                for cmd in cmds_no_password:
+                    try:
+                        res = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                        if res.returncode == 0:
+                            print(f"[SYSTEM] Shutdown OK via {cmd}", file=sys.stderr)
+                            return
+                        print(f"[SHUTDOWN] {cmd} -> code={res.returncode} {res.stderr.strip()[:80]}", file=sys.stderr)
                     except Exception as e:
                         print(f"[SHUTDOWN] {cmd} exception: {e}", file=sys.stderr)
                 print("[SHUTDOWN ERROR] All methods failed!", file=sys.stderr)
+
             threading.Thread(target=do_shutdown, daemon=True).start()
             return
 
         elif path == "/api/system/reboot":
             print("[SYSTEM] Reboot initiated by remote.", file=sys.stderr)
             self.send_json({"success": True})
-            reboot_cmds = [
-                ["sudo", "-n", "systemctl", "reboot"],
-                ["sudo", "-n", "shutdown", "-r", "now"],
-                ["sudo", "-n", "reboot"],
-                ["systemctl", "reboot"],
-                ["loginctl", "reboot"],
-                ["shutdown", "-r", "now"],
-            ]
+
             def do_reboot():
-                for cmd in reboot_cmds:
+                import time
+                time.sleep(0.3)
+                pwd = SUDO_PASSWORD
+                cmds_with_password = [
+                    (["sudo", "-S", "systemctl", "reboot"], pwd),
+                    (["sudo", "-S", "shutdown", "-r", "now"], pwd),
+                    (["sudo", "-S", "reboot"], pwd),
+                ]
+                cmds_no_password = [
+                    ["systemctl", "reboot"],
+                    ["loginctl", "reboot"],
+                    ["shutdown", "-r", "now"],
+                ]
+                for cmd, password in cmds_with_password:
                     try:
-                        res = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+                        res = subprocess.run(
+                            cmd,
+                            input=(password + "\n") if password else "",
+                            capture_output=True, text=True, timeout=10
+                        )
                         if res.returncode == 0:
-                            print(f"[SYSTEM] Reboot via {cmd}", file=sys.stderr)
+                            print(f"[SYSTEM] Reboot OK via {cmd}", file=sys.stderr)
                             return
-                        print(f"[REBOOT] {cmd} -> code={res.returncode} {res.stderr.strip()}", file=sys.stderr)
+                        print(f"[REBOOT] {cmd} -> code={res.returncode} {res.stderr.strip()[:80]}", file=sys.stderr)
+                    except Exception as e:
+                        print(f"[REBOOT] {cmd} exception: {e}", file=sys.stderr)
+                for cmd in cmds_no_password:
+                    try:
+                        res = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                        if res.returncode == 0:
+                            print(f"[SYSTEM] Reboot OK via {cmd}", file=sys.stderr)
+                            return
+                        print(f"[REBOOT] {cmd} -> code={res.returncode} {res.stderr.strip()[:80]}", file=sys.stderr)
                     except Exception as e:
                         print(f"[REBOOT] {cmd} exception: {e}", file=sys.stderr)
                 print("[REBOOT ERROR] All methods failed!", file=sys.stderr)
+
             threading.Thread(target=do_reboot, daemon=True).start()
             return
             

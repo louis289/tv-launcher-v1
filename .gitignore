@@ -1,0 +1,10 @@
+# Secrets - NE JAMAIS COMMITTER
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs
+*.log
