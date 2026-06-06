@@ -27,24 +27,46 @@ DATA_PATH = os.path.join(BASE_DIR, "data.json")
 # ---------------------------------------------------------
 # X11 Display Environment Detection
 # ---------------------------------------------------------
+def find_xauthority():
+    # 1. Check standard /home paths
+    try:
+        if os.path.exists('/home'):
+            for username in os.listdir('/home'):
+                xauth = os.path.join('/home', username, '.Xauthority')
+                if os.path.exists(xauth):
+                    return xauth
+    except Exception:
+        pass
+        
+    # 2. Check /run/user paths (common in modern Ubuntu/GDM/LightDM)
+    try:
+        if os.path.exists('/run/user'):
+            for uid in os.listdir('/run/user'):
+                uid_dir = os.path.join('/run/user', uid)
+                if os.path.isdir(uid_dir):
+                    gdm_xauth = os.path.join(uid_dir, 'gdm', 'Xauthority')
+                    if os.path.exists(gdm_xauth):
+                        return gdm_xauth
+                    for filename in os.listdir(uid_dir):
+                        if filename.startswith('xauth') or filename == '.Xauthority':
+                            xauth_path = os.path.join(uid_dir, filename)
+                            if os.path.exists(xauth_path):
+                                return xauth_path
+    except Exception:
+        pass
+        
+    # 3. Fallback standard path
+    return '/home/ghiglione/.Xauthority'
+
 def get_x11_env():
     env = os.environ.copy()
     
-    # Default display to :0 if not present (standard TV setup)
+    # Default display to :0 if not present
     if 'DISPLAY' not in env:
         env['DISPLAY'] = ':0'
         
     if 'XAUTHORITY' not in env:
-        # Scan /home for user's .Xauthority configuration file
-        try:
-            if os.path.exists('/home'):
-                for username in os.listdir('/home'):
-                    xauth = os.path.join('/home', username, '.Xauthority')
-                    if os.path.exists(xauth):
-                        env['XAUTHORITY'] = xauth
-                        break
-        except Exception as e:
-            print(f"[X11 Search Warning] Failed scanning /home: {e}", file=sys.stderr)
+        env['XAUTHORITY'] = find_xauthority()
             
     return env
 
