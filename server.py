@@ -168,16 +168,38 @@ def launch_application(app):
 # ---------------------------------------------------------
 def control_hyperion(action):
     env = get_x11_env()
+    
+    # S'assurer que XDG_RUNTIME_DIR est présent pour permettre la communication avec systemd --user
+    if 'XDG_RUNTIME_DIR' not in env:
+        uid = "1000"
+        try:
+            import pwd
+            uid = str(pwd.getpwnam('ghiglione').pw_uid)
+        except Exception:
+            pass
+        env['XDG_RUNTIME_DIR'] = f'/run/user/{uid}'
+
+    verb = "start" if action == "on" else "stop"
+    cmd = ["systemctl", "--user", verb, "hyperion.service"]
+    print(f"[HYPERION] {action.upper()} via 'systemctl --user {verb} hyperion.service'")
+    
+    try:
+        res = subprocess.run(cmd, env=env, capture_output=True, text=True)
+        if res.returncode == 0:
+            return True
+        else:
+            print(f"[WARNING] Échec systemctl --user, code={res.returncode}, stderr={res.stderr.strip()}. Tentative de repli direct...", file=sys.stderr)
+    except Exception as e:
+        print(f"[WARNING] Exception systemctl: {e}. Tentative de repli direct...", file=sys.stderr)
+        
+    # Repli direct en lançant le binaire (fallback)
     if action == "on":
         display = env.get('DISPLAY', ':0')
         xauth = env.get('XAUTHORITY', '/home/ghiglione/.Xauthority')
-        # Utilise les variables d'environnement détectées dynamiquement au lieu de valeurs en dur
-        cmd = f"bash -c 'killall hyperiond; env DISPLAY={display} XAUTHORITY={xauth} nohup /bin/hyperiond > /dev/null 2>&1 &'"
-        print(f"[HYPERION] Démarrage du service (DISPLAY={display}, XAUTHORITY={xauth})")
-        subprocess.Popen(cmd, shell=True, env=env)
+        fallback_cmd = f"bash -c 'killall hyperiond; env DISPLAY={display} XAUTHORITY={xauth} nohup /bin/hyperiond > /dev/null 2>&1 &'"
+        subprocess.Popen(fallback_cmd, shell=True, env=env)
         return True
     elif action == "off":
-        print("[HYPERION] Arrêt du service")
         subprocess.run(["killall", "hyperiond"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return True
     return False
