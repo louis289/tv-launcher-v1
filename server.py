@@ -304,8 +304,11 @@ class TVRemoteHandler(BaseHTTPRequestHandler):
     # Mute log console output for frequent mouse moves and state checks
     def log_message(self, format, *args):
         # Filter out noisy endpoints from printing to CLI stdout
-        request_line = args[0] if len(args) > 0 else ""
-        if "/api/mouse/move" in request_line or "/api/status" in request_line:
+        try:
+            log_str = format % args
+        except Exception:
+            log_str = ""
+        if "/api/mouse/move" in log_str or "/api/status" in log_str:
             return
         super().log_message(format, *args)
         

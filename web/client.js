@@ -9,9 +9,13 @@ const activeModifiers = {
 
 // State variables for CMS and Mouse modes
 let isEditMode = false;
-let mouseMode = 'joystick'; // 'joystick' or 'trackpad'
+let mouseMode = 'joystick'; // 'joystick', 'trackpad', or 'gyro'
 let mouseSpeed = 5;         // Sensitivity multiplier (1 to 10)
 let cachedApps = [];        // Local copy of apps list
+
+// Global hooks for gyro controls (assigned in initGyroscope)
+let startGyroscope = () => {};
+let stopGyroscope = () => {};
 
 // Connection status check interval
 let statusInterval = null;
@@ -339,6 +343,10 @@ function initJoystick() {
   
   const modeJoyBtn = document.getElementById('mode-joystick');
   const modeTrackBtn = document.getElementById('mode-trackpad');
+  const modeGyroBtn = document.getElementById('mode-gyro');
+
+  const speedContainer = document.getElementById('mouse-speed-container');
+  const gyroContainer = document.getElementById('gyro-settings-container');
   
   let padBounds = null;
   let isDragging = false;
@@ -350,32 +358,61 @@ function initJoystick() {
   let prevX = 0;
   let prevY = 0;
 
+  // Tap detection variables
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchStartTime = 0;
+  let hasMoved = false;
+  let lastX = 0;
+  let lastY = 0;
+
   // 1. Mouse speed / sensitivity slider setup
   speedSlider.addEventListener('input', () => {
     mouseSpeed = parseInt(speedSlider.value);
     speedVal.textContent = mouseSpeed;
   });
 
-  // 2. Mouse Mode selector setup (Joystick vs Trackpad)
-  modeJoyBtn.addEventListener('click', () => {
-    mouseMode = 'joystick';
-    modeJoyBtn.classList.add('active');
-    modeTrackBtn.classList.remove('active');
-    pad.classList.remove('trackpad-mode');
-    label.textContent = "Glissez pour déplacer (Joystick)";
+  // 2. Mouse Mode selector setup (Joystick vs Trackpad vs Gyro)
+  const setMouseMode = (mode) => {
+    if (mouseMode === 'gyro' && mode !== 'gyro') {
+      stopGyroscope();
+    }
+    
+    mouseMode = mode;
+    
+    // Toggle active state on buttons
+    modeJoyBtn.classList.toggle('active', mode === 'joystick');
+    modeTrackBtn.classList.toggle('active', mode === 'trackpad');
+    modeGyroBtn.classList.toggle('active', mode === 'gyro');
+    
+    // Toggle class and display containers
+    if (mode === 'joystick') {
+      pad.classList.remove('trackpad-mode');
+      speedContainer.style.display = '';
+      gyroContainer.style.display = 'none';
+      label.textContent = "Glissez pour déplacer (Joystick)";
+    } else if (mode === 'trackpad') {
+      pad.classList.add('trackpad-mode');
+      speedContainer.style.display = '';
+      gyroContainer.style.display = 'none';
+      label.textContent = "Glissez pour déplacer, Tapez G/D pour cliquer";
+    } else if (mode === 'gyro') {
+      pad.classList.add('trackpad-mode'); // Gyro also uses rectangular pad for clicks
+      speedContainer.style.display = 'none';
+      gyroContainer.style.display = 'flex';
+      label.textContent = "Inclinez le téléphone, Tapez G/D pour cliquer";
+      
+      // Auto-start gyroscope
+      startGyroscope();
+    }
+    
     vibrate(15);
-    onDragEnd(); // Reset just in case
-  });
+    onDragEnd(); // Reset dragging state
+  };
 
-  modeTrackBtn.addEventListener('click', () => {
-    mouseMode = 'trackpad';
-    modeTrackBtn.classList.add('active');
-    modeJoyBtn.classList.remove('active');
-    pad.classList.add('trackpad-mode');
-    label.textContent = "Glissez pour déplacer (Trackpad)";
-    vibrate(15);
-    onDragEnd();
-  });
+  modeJoyBtn.addEventListener('click', () => setMouseMode('joystick'));
+  modeTrackBtn.addEventListener('click', () => setMouseMode('trackpad'));
+  modeGyroBtn.addEventListener('click', () => setMouseMode('gyro'));
 
   // Initialize bounds on touch start to support scrolling/rotations
   const updatePadBounds = () => {
@@ -390,10 +427,18 @@ function initJoystick() {
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     
+    // Tap detection setup
+    touchStartX = clientX;
+    touchStartY = clientY;
+    lastX = clientX;
+    lastY = clientY;
+    touchStartTime = Date.now();
+    hasMoved = false;
+    
     if (mouseMode === 'trackpad') {
       prevX = clientX;
       prevY = clientY;
-    } else {
+    } else if (mouseMode === 'joystick') {
       updatePadBounds();
       onDragMove(e);
       // Start interval to continuously move pointer based on joystick tilt
@@ -401,7 +446,9 @@ function initJoystick() {
       movementTimer = setInterval(moveMouseFromJoystick, CONFIG.mousePollRateMs);
     }
     
-    if (e.cancelable) e.preventDefault();
+    if (e.cancelable && mouseMode !== 'gyro') {
+      e.preventDefault();
+    }
   };
 
   const onDragMove = (e) => {
@@ -409,6 +456,15 @@ function initJoystick() {
     
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    
+    lastX = clientX;
+    lastY = clientY;
+    
+    const displacementX = Math.abs(clientX - touchStartX);
+    const displacementY = Math.abs(clientY - touchStartY);
+    if (displacementX > 8 || displacementY > 8) {
+      hasMoved = true;
+    }
     
     if (mouseMode === 'trackpad') {
       const dx = clientX - prevX;
@@ -424,7 +480,7 @@ function initJoystick() {
         prevX = clientX;
         prevY = clientY;
       }
-    } else {
+    } else if (mouseMode === 'joystick') {
       const padCenterX = padBounds.left + padBounds.width / 2;
       const padCenterY = padBounds.top + padBounds.height / 2;
       
@@ -454,6 +510,26 @@ function initJoystick() {
     if (!isDragging) return;
     isDragging = false;
     pad.classList.remove('active');
+    
+    const duration = Date.now() - touchStartTime;
+    const displacementX = Math.abs(lastX - touchStartX);
+    const displacementY = Math.abs(lastY - touchStartY);
+    const totalDist = Math.sqrt(displacementX * displacementX + displacementY * displacementY);
+    
+    // Tap-to-click detection
+    if ((mouseMode === 'trackpad' || mouseMode === 'gyro') && 
+        (!hasMoved || (duration < 250 && totalDist < 15))) {
+      // It's a tap! Click Left or Right based on position
+      const rect = pad.getBoundingClientRect();
+      const clickX = lastX - rect.left;
+      
+      vibrate(20);
+      if (clickX < rect.width / 2) {
+        apiPost('/api/mouse/click', { button: 'left' });
+      } else {
+        apiPost('/api/mouse/click', { button: 'right' });
+      }
+    }
     
     if (mouseMode === 'joystick') {
       // Animate stick snap-back to center
@@ -521,7 +597,6 @@ function initMouseButtons() {
 // Panel 3: Gyroscope Mouse Controller
 // ---------------------------------------------------------
 function initGyroscope() {
-  const toggle = document.getElementById('gyro-toggle');
   const status = document.getElementById('gyro-status');
   const sensSlider = document.getElementById('gyro-sens');
   const sensValue = document.getElementById('gyro-sens-val');
@@ -553,19 +628,10 @@ function initGyroscope() {
     }, 1500);
   });
 
-  toggle.addEventListener('change', async () => {
-    if (toggle.checked) {
-      await startGyro();
-    } else {
-      stopGyro();
-    }
-  });
-
   async function startGyro() {
     // Check if device orientation API is available
     if (!window.DeviceOrientationEvent) {
       status.textContent = 'Erreur : Capteur non supporté par ce navigateur.';
-      toggle.checked = false;
       return;
     }
 
@@ -575,19 +641,16 @@ function initGyroscope() {
         const permission = await DeviceOrientationEvent.requestPermission();
         if (permission !== 'granted') {
           status.textContent = 'Accès au capteur refusé.';
-          toggle.checked = false;
           return;
         }
       } catch (err) {
         status.textContent = 'Erreur autorisation gyroscope : ' + err.message;
-        toggle.checked = false;
         return;
       }
     }
 
     isGyroActive = true;
     baseBeta = null; // Re-calibrate on startup
-    calibBtn.style.display = 'block';
     status.textContent = 'Initialisation... Mettez le téléphone à plat.';
     window.addEventListener('deviceorientation', handleOrientation);
     vibrate([30, 50, 30]);
@@ -595,11 +658,14 @@ function initGyroscope() {
 
   function stopGyro() {
     isGyroActive = false;
-    calibBtn.style.display = 'none';
     status.textContent = 'Désactivé. Utilisez les capteurs de votre téléphone pour diriger la souris.';
     window.removeEventListener('deviceorientation', handleOrientation);
     vibrate(30);
   }
+
+  // Expose methods to global scope
+  startGyroscope = startGyro;
+  stopGyroscope = stopGyro;
 
   function handleOrientation(e) {
     if (!isGyroActive) return;
@@ -638,8 +704,8 @@ function initGyroscope() {
     }
     
     if (Math.abs(dBeta) > deadzone) {
-      // Map Up/Down tilt to Mouse Y movement
-      dy = dBeta * gyroSensitivity;
+      // Map Up/Down tilt to Mouse Y movement (inverted Y-axis)
+      dy = -dBeta * gyroSensitivity;
     }
 
     // Accumulate movement delta
