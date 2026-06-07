@@ -924,8 +924,8 @@ function initTouchpad() {
   surface.addEventListener('touchmove', e => {
     if (e.touches.length === 1 && touchCount === 1) {
       const touch = e.touches[0];
-      const dx = (touch.clientX - lastTouchX) * 1.5;
-      const dy = (touch.clientY - lastTouchY) * 1.5;
+      const dx = (touch.clientX - lastTouchX) * 3.0;
+      const dy = (touch.clientY - lastTouchY) * 3.0;
 
       lastTouchX = touch.clientX;
       lastTouchY = touch.clientY;
