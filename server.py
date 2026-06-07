@@ -744,6 +744,24 @@ class TVRemoteHandler(BaseHTTPRequestHandler):
             
         elif path == "/api/fullscreen":
             success = run_xdotool(["key", "F11"])
+
+        elif path == "/api/quit-app":
+            import time
+            # 1. Try Ctrl+Q (Firefox, most apps)
+            run_xdotool(["key", "ctrl+q"])
+            time.sleep(0.4)
+            # 2. Try Ctrl+W (Chrome: close tab / window)
+            run_xdotool(["key", "ctrl+w"])
+            time.sleep(0.3)
+            # 3. Try Alt+F4 (universal window close on Linux)
+            run_xdotool(["key", "alt+F4"])
+            time.sleep(0.3)
+            # 4. Last resort: pkill browsers
+            env = get_x11_env()
+            for proc_name in ["google-chrome", "chromium-browser", "chromium", "firefox"]:
+                subprocess.run(["pkill", "-f", proc_name],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            success = True
             
         elif path == "/api/system/shutdown":
             print("[SYSTEM] Shutdown initiated by remote.", file=sys.stderr)

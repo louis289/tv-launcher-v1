@@ -837,6 +837,11 @@ function sendFullscreen() {
   apiPost('/api/fullscreen');
 }
 
+function sendQuitApp() {
+  vibrate(30);
+  apiPost('/api/quit-app');
+}
+
 function sendZoom(level) {
   vibrate(15);
   apiPost('/api/zoom', { action: level });
@@ -1097,7 +1102,7 @@ async function moveAppInList(currentIndex, direction) {
 // Live Screen Monitor & Interactive VNC Control
 // ---------------------------------------------------------
 let isMonitorActive = false;
-let isControlActive = false;
+let isControlActive = true;  // Contrôle actif par défaut
 let monitorFps = 2;
 let monitorInterval = null;
 let isPolling = false;
@@ -1131,7 +1136,13 @@ function initMonitor() {
     });
   }
 
-  // 1. Toggle Monitor Active
+  // Defaults: flux OFF, contrôle ON
+  chkMonitor.checked = false;
+  chkControl.checked = true;
+  isControlActive = true;
+  innerWrapper.classList.add('control-enabled');
+
+  // 1. Toggle Monitor Active (flux screenshots)
   chkMonitor.addEventListener('change', () => {
     if (chkMonitor.checked) {
       startMonitor();
@@ -1144,7 +1155,6 @@ function initMonitor() {
   chkControl.addEventListener('change', () => {
     isControlActive = chkControl.checked;
     innerWrapper.classList.toggle('control-enabled', isControlActive);
-    
     if (!isControlActive) {
       document.getElementById('monitor-pointer').style.display = 'none';
     }
@@ -1157,43 +1167,41 @@ function initMonitor() {
     fpsVal.textContent = monitorFps;
   });
 
-  // 4. Mouse movement on image
+  // 4. Mouse movement on image → moves TV cursor
   img.addEventListener('mousemove', (e) => {
     if (!isControlActive) return;
-    
     const rect = img.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
-    
-    // Send absolute movement command to server (throttled)
     sendThrottledMoveAbs(x, y);
-    
-    // Draw pointer indicator locally
     updateLocalPointer(e.clientX - rect.left, e.clientY - rect.top);
   });
 
-  // 5. Mouse click on image
+  // 5. Mouse click on image → move then click on TV
   img.addEventListener('mousedown', (e) => {
     if (!isControlActive) return;
-    
     const rect = img.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
-    
-    // Move first to target point, then perform click
     sendMoveAbsDirect(x, y, () => {
       const buttonName = e.button === 2 ? 'right' : 'left';
       apiPost('/api/mouse/click', { button: buttonName });
     });
-    
     e.preventDefault();
   });
 
-  // 6. Disable right click context menu inside screen share
+  // 6. Scroll wheel → scroll on TV
+  img.addEventListener('wheel', (e) => {
+    if (!isControlActive) return;
+    e.preventDefault();
+    const direction = e.deltaY > 0 ? 'down' : 'up';
+    const clicks = Math.max(1, Math.min(5, Math.round(Math.abs(e.deltaY) / 50)));
+    apiPost('/api/mouse/scroll', { direction, clicks });
+  }, { passive: false });
+
+  // 7. Disable right click context menu inside screen share
   img.addEventListener('contextmenu', (e) => {
-    if (isControlActive) {
-      e.preventDefault();
-    }
+    if (isControlActive) e.preventDefault();
   });
 }
 
