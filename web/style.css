@@ -1375,6 +1375,27 @@ input:checked + .slider-round:before {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
+}
+
+.monitor-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.btn-update {
+  color: var(--accent-green) !important;
+  border-color: rgba(16, 185, 129, 0.25) !important;
+}
+
+.btn-update:hover {
+  background: rgba(16, 185, 129, 0.08) !important;
+}
+
+.btn-update:disabled {
+  cursor: not-allowed;
 }
 
 .monitor-dot {

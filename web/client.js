@@ -38,11 +38,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initMouseButtons();
   initGyroscope();
   initUrlLauncher();
-  initAppsCMS(); // Initialize Modal & Edit Mode triggers
-  initMonitor(); // Initialize live TV screen monitor
-  initPowerModal(); // Initialize Power Modal buttons
+  initAppsCMS();
+  initMonitor();
+  initPowerModal();
+  initUpdateButton();
   
-  // Connection status loop
   checkStatus();
   statusInterval = setInterval(checkStatus, 5000);
 });
@@ -894,6 +894,66 @@ function hidePowerModal() {
   }
 }
 
+// ---------------------------------------------------------
+// System Update Button
+// ---------------------------------------------------------
+function initUpdateButton() {
+  const btn = document.getElementById('btn-system-update');
+  if (!btn) return;
+
+  btn.addEventListener('click', async () => {
+    if (btn.disabled) return;
+    vibrate(30);
+
+    // Visual feedback
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Mise à jour...';
+    btn.style.opacity = '0.6';
+
+    try {
+      await apiPost('/api/system/update');
+    } catch (e) {
+      console.error('Update error:', e);
+    }
+
+    // Show reconnecting state
+    btn.innerHTML = '🔄 Redémarrage...';
+
+    // Poll until server comes back
+    let attempts = 0;
+    const maxAttempts = 30; // 30s
+    const pollInterval = setInterval(async () => {
+      attempts++;
+      try {
+        const r = await fetch('/api/status', { cache: 'no-store' });
+        if (r.ok) {
+          clearInterval(pollInterval);
+          btn.innerHTML = '✅ À jour !';
+          btn.style.opacity = '1';
+          setTimeout(() => {
+            btn.innerHTML = original;
+            btn.disabled = false;
+          }, 2500);
+          // Reload page to get fresh JS/HTML
+          setTimeout(() => location.reload(), 3000);
+        }
+      } catch (_) {
+        // Server restarting, keep polling
+      }
+      if (attempts >= maxAttempts) {
+        clearInterval(pollInterval);
+        btn.innerHTML = '⚠️ Timeout';
+        btn.style.opacity = '1';
+        setTimeout(() => {
+          btn.innerHTML = original;
+          btn.disabled = false;
+        }, 3000);
+      }
+    }, 1000);
+  });
+}
+
 
 // ---------------------------------------------------------
 // Panel 1: Apps CMS (Add, Edit, Delete, Reorder)
@@ -1213,14 +1273,9 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   
-  // Respect Raccourcis TV switch: if unchecked, don't intercept modifiers combinations
-  const chkShortcuts = document.getElementById('chk-shortcuts-active');
-  const interceptShortcuts = chkShortcuts && chkShortcuts.checked;
+  // Don't intercept modifier combinations (Ctrl+R, Ctrl+T, etc.) — let browser handle them
   const hasModifier = e.ctrlKey || e.altKey || e.metaKey;
-  
-  if (hasModifier && !interceptShortcuts) {
-    return; // Run shortcut on PC
-  }
+  if (hasModifier) return;
   
   // Mapping key strings to xdotool named keys
   const keyMap = {
@@ -1238,24 +1293,13 @@ window.addEventListener('keydown', (e) => {
   };
   
   const ignoredKeys = ['Control', 'Shift', 'Alt', 'Meta', 'CapsLock'];
-  if (ignoredKeys.includes(e.key)) {
-    return;
-  }
+  if (ignoredKeys.includes(e.key)) return;
   
   let key = keyMap[e.key] || e.key;
   
-  // Modifiers tracking
   const modifiers = [];
-  if (e.ctrlKey) modifiers.push('ctrl');
-  if (e.altKey) modifiers.push('alt');
-  if (e.metaKey) modifiers.push('super');
   if (e.shiftKey && key.length > 1) modifiers.push('shift');
   
-  // Send combo to TV server
-  apiPost('/api/keyboard/key', {
-    key: key,
-    modifiers: modifiers
-  });
-  
+  apiPost('/api/keyboard/key', { key, modifiers });
   e.preventDefault();
 });

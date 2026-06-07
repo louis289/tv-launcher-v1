@@ -300,7 +300,7 @@ def launch_application(app):
 def control_hyperion(action):
     env = get_x11_env()
     
-    # S'assurer que XDG_RUNTIME_DIR est présent pour permettre la communication avec systemd --user
+    # S'assurer que XDG_RUNTIME_DIR est présent
     if 'XDG_RUNTIME_DIR' not in env:
         uid = "1000"
         try:
@@ -310,12 +310,14 @@ def control_hyperion(action):
             pass
         env['XDG_RUNTIME_DIR'] = f'/run/user/{uid}'
 
-    verb = "start" if action == "on" else "stop"
+    # ON = restart (pour relancer même si déjà en cours mais bloqué)
+    # OFF = stop
+    verb = "restart" if action == "on" else "stop"
     cmd = ["systemctl", "--user", verb, "hyperion.service"]
     print(f"[HYPERION] {action.upper()} via 'systemctl --user {verb} hyperion.service'")
     
     try:
-        res = subprocess.run(cmd, env=env, capture_output=True, text=True)
+        res = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=10)
         if res.returncode == 0:
             return True
         else:
@@ -327,11 +329,11 @@ def control_hyperion(action):
     if action == "on":
         display = env.get('DISPLAY', ':0')
         xauth = env.get('XAUTHORITY', '/home/ghiglione/.Xauthority')
-        fallback_cmd = f"bash -c 'killall hyperiond; env DISPLAY={display} XAUTHORITY={xauth} nohup /bin/hyperiond > /dev/null 2>&1 &'"
+        fallback_cmd = f"bash -c 'killall hyperiond 2>/dev/null; sleep 0.5; env DISPLAY={display} XAUTHORITY={xauth} nohup /bin/hyperiond > /dev/null 2>&1 &'"
         subprocess.Popen(fallback_cmd, shell=True, env=env)
         return True
     elif action == "off":
-        subprocess.run(["killall", "hyperiond"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["killall", "-9", "hyperiond"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return True
     return False
 
@@ -342,37 +344,73 @@ def capture_screen():
     import tempfile
     tmp_file = os.path.join(tempfile.gettempdir(), "tv_screen.png")
     env = get_x11_env()
+    display = env.get('DISPLAY', ':0')
     
-    # Try scrot first (fast & silent)
+    # 1. scrot (rapide, silencieux)
     try:
-        res = subprocess.run(["scrot", "-z", "-o", tmp_file], env=env, capture_output=True, text=True)
+        res = subprocess.run(["scrot", "-z", "-o", tmp_file], env=env, capture_output=True, text=True, timeout=5)
         if res.returncode == 0 and os.path.exists(tmp_file):
             return tmp_file
-        else:
-            print(f"[SCREENSHOT ERROR] scrot failed: code={res.returncode}, stderr={res.stderr.strip()}", file=sys.stderr)
+        print(f"[SCREENSHOT] scrot: code={res.returncode} {res.stderr.strip()[:60]}", file=sys.stderr)
     except Exception as e:
-        print(f"[SCREENSHOT EXCEPTION] scrot exception: {e}", file=sys.stderr)
+        print(f"[SCREENSHOT] scrot: {e}", file=sys.stderr)
 
-    # Try gnome-screenshot
+    # 2. ffmpeg x11grab (très commun sur Ubuntu)
     try:
-        res = subprocess.run(["gnome-screenshot", "-f", tmp_file], env=env, capture_output=True, text=True)
+        w, h = get_screen_resolution()
+        res = subprocess.run([
+            "ffmpeg", "-y",
+            "-f", "x11grab",
+            "-video_size", f"{w}x{h}",
+            "-i", display,
+            "-vframes", "1",
+            "-q:v", "2",
+            tmp_file
+        ], env=env, capture_output=True, text=True, timeout=8)
         if res.returncode == 0 and os.path.exists(tmp_file):
             return tmp_file
-        else:
-            print(f"[SCREENSHOT ERROR] gnome-screenshot failed: code={res.returncode}, stderr={res.stderr.strip()}", file=sys.stderr)
+        print(f"[SCREENSHOT] ffmpeg: code={res.returncode} {res.stderr.strip()[-120:]}", file=sys.stderr)
     except Exception as e:
-        print(f"[SCREENSHOT EXCEPTION] gnome-screenshot exception: {e}", file=sys.stderr)
+        print(f"[SCREENSHOT] ffmpeg: {e}", file=sys.stderr)
 
-    # Try import (ImageMagick)
+    # 3. xwd + convert (x11-apps + imagemagick)
     try:
-        res = subprocess.run(["import", "-window", "root", tmp_file], env=env, capture_output=True, text=True)
+        xwd_proc = subprocess.run(
+            ["xwd", "-root", "-silent", "-display", display],
+            env=env, capture_output=True, timeout=5
+        )
+        if xwd_proc.returncode == 0 and xwd_proc.stdout:
+            conv = subprocess.run(
+                ["convert", "xwd:-", tmp_file],
+                input=xwd_proc.stdout, capture_output=True, timeout=5
+            )
+            if conv.returncode == 0 and os.path.exists(tmp_file):
+                return tmp_file
+            print(f"[SCREENSHOT] xwd+convert: convert code={conv.returncode}", file=sys.stderr)
+        else:
+            print(f"[SCREENSHOT] xwd: code={xwd_proc.returncode}", file=sys.stderr)
+    except Exception as e:
+        print(f"[SCREENSHOT] xwd+convert: {e}", file=sys.stderr)
+
+    # 4. gnome-screenshot
+    try:
+        res = subprocess.run(["gnome-screenshot", "-f", tmp_file], env=env, capture_output=True, text=True, timeout=5)
         if res.returncode == 0 and os.path.exists(tmp_file):
             return tmp_file
-        else:
-            print(f"[SCREENSHOT ERROR] import failed: code={res.returncode}, stderr={res.stderr.strip()}", file=sys.stderr)
+        print(f"[SCREENSHOT] gnome-screenshot: code={res.returncode}", file=sys.stderr)
     except Exception as e:
-        print(f"[SCREENSHOT EXCEPTION] import exception: {e}", file=sys.stderr)
-        
+        print(f"[SCREENSHOT] gnome-screenshot: {e}", file=sys.stderr)
+
+    # 5. import (ImageMagick)
+    try:
+        res = subprocess.run(["import", "-window", "root", tmp_file], env=env, capture_output=True, text=True, timeout=5)
+        if res.returncode == 0 and os.path.exists(tmp_file):
+            return tmp_file
+        print(f"[SCREENSHOT] import: code={res.returncode}", file=sys.stderr)
+    except Exception as e:
+        print(f"[SCREENSHOT] import: {e}", file=sys.stderr)
+
+    print("[SCREENSHOT] Tous les outils ont échoué. Installez scrot: sudo apt install scrot", file=sys.stderr)
     return None
 
 def get_screen_resolution():
@@ -798,7 +836,51 @@ class TVRemoteHandler(BaseHTTPRequestHandler):
 
             threading.Thread(target=do_reboot, daemon=True).start()
             return
-            
+
+        elif path == "/api/system/update":
+            print("[SYSTEM] Update requested by remote.", file=sys.stderr)
+            self.send_json({"success": True, "message": "Mise à jour en cours..."})
+
+            def do_update():
+                import time
+                time.sleep(0.5)
+                # 1. git pull
+                try:
+                    res = subprocess.run(
+                        ["git", "pull"],
+                        cwd=BASE_DIR,
+                        capture_output=True, text=True, timeout=60
+                    )
+                    out = res.stdout.strip() + " " + res.stderr.strip()
+                    print(f"[UPDATE] git pull: {out.strip()}", file=sys.stderr)
+                except Exception as e:
+                    print(f"[UPDATE] git pull exception: {e}", file=sys.stderr)
+
+                time.sleep(1)
+                # 2. Restart service (client will reconnect automatically)
+                pwd = SUDO_PASSWORD
+                restart_cmds = [
+                    (["sudo", "-S", "systemctl", "restart", "tv-remote.service"], pwd),
+                    (["sudo", "-S", "systemctl", "restart", "tv-remote.service"], ""),
+                ]
+                for cmd, password in restart_cmds:
+                    try:
+                        res = subprocess.run(
+                            cmd,
+                            input=(password + "\n") if password else "",
+                            capture_output=True, text=True, timeout=30
+                        )
+                        if res.returncode == 0:
+                            print(f"[UPDATE] Service redémarré OK", file=sys.stderr)
+                            return
+                        print(f"[UPDATE] {cmd} -> {res.returncode}: {res.stderr.strip()[:80]}", file=sys.stderr)
+                    except Exception as e:
+                        print(f"[UPDATE] {cmd} exception: {e}", file=sys.stderr)
+                print("[UPDATE ERROR] Impossible de redémarrer le service.", file=sys.stderr)
+
+            threading.Thread(target=do_update, daemon=True).start()
+            return
+
         else:
             self.send_error(404, "Route API Non Trouvée")
             return

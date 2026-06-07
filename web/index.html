@@ -272,7 +272,10 @@
       <div class="monitor-title-bar">
         <span class="monitor-dot"></span>
         <h2>Moniteur TV en Direct</h2>
-        <button class="btn-icon-toggle" id="btn-monitor-fullscreen" title="Plein Écran" style="margin-left: 10px; font-size: 0.7rem; padding: 3px 6px; display: inline-flex; align-items: center; gap: 4px;">🖥️ Plein Écran</button>
+        <div class="monitor-title-actions">
+          <button class="btn-icon-toggle" id="btn-monitor-fullscreen" title="Plein Écran">🖥️ Plein Écran</button>
+          <button class="btn-icon-toggle btn-update" id="btn-system-update" title="Mettre à jour l'app et redémarrer le service">🔄 Mettre à jour</button>
+        </div>
       </div>
       <div class="monitor-controls">
         <div class="monitor-control-item">
@@ -286,13 +289,6 @@
           <span>Contrôle Live</span>
           <label class="switch">
             <input type="checkbox" id="chk-control-active">
-            <span class="slider-round"></span>
-          </label>
-        </div>
-        <div class="monitor-control-item">
-          <span>Raccourcis TV</span>
-          <label class="switch">
-            <input type="checkbox" id="chk-shortcuts-active">
             <span class="slider-round"></span>
           </label>
         </div>
