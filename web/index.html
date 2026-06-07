@@ -239,6 +239,10 @@
               <svg viewBox="0 0 24 24"><path fill="currentColor" d="M5,5H10V7H7V10H5V5M14,5H19V10H17V7H14V5M17,14H19V19H14V17H17V14M7,14H5V19H10V17H7V14Z"/></svg>
               <span>Grand Écran</span>
             </button>
+            <button class="btn btn-sys btn-bottom-action" onclick="sendOpenLauncher()" title="Ouvrir le lanceur d'applications sur la TV">
+              <svg viewBox="0 0 24 24"><path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+              <span>Ouvrir Lanceur</span>
+            </button>
             <button class="btn btn-sys btn-danger-sys" onclick="sendQuitApp()" title="Quitter l'application active">
               <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/></svg>
               <span>Quitter App</span>
@@ -275,7 +279,14 @@
         <button class="btn-icon-toggle" id="btn-monitor-fullscreen" title="Plein Écran" style="margin-left:auto; font-size:0.7rem; padding:3px 8px; display:inline-flex; align-items:center; gap:4px;">🖥️ Plein Écran</button>
       </div>
       <div class="monitor-controls">
-        <div class="monitor-control-item">
+        <div class="monitor-control-item" id="monitor-mode-control">
+          <span>Mode Souris</span>
+          <select id="select-monitor-mode" class="select-mode">
+            <option value="screen">Vue Écran</option>
+            <option value="trackpad">Trackpad</option>
+          </select>
+        </div>
+        <div class="monitor-control-item" id="monitor-active-row">
           <span>Flux Actif</span>
           <label class="switch">
             <input type="checkbox" id="chk-monitor-active">
@@ -293,20 +304,101 @@
     </header>
     
     <div class="monitor-screen-wrapper">
+      <!-- Vue flux (desktop avec souris) -->
       <div class="monitor-screen-inner" id="monitor-screen-inner">
         <img id="monitor-screenshot" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='9' viewBox='0 0 16 9'><rect width='100%' height='100%' fill='%23181824'/><text x='50%' y='50%' font-family='sans-serif' font-size='0.8' fill='%236e6e8a' dominant-baseline='middle' text-anchor='middle'>Flux Inactif</text></svg>" alt="TV Screen Monitor">
         <div class="monitor-pointer-indicator" id="monitor-pointer" style="display:none;"></div>
       </div>
+
+      <!-- Vue trackpad tactile (iPad / écran tactile sans souris) -->
+      <div class="monitor-touchpad-zone" id="monitor-touchpad" style="display:none;">
+        <div class="touchpad-surface" id="touchpad-surface">
+          <div class="touchpad-hint">
+            <svg viewBox="0 0 24 24" width="32" height="32"><path fill="currentColor" d="M9 11.24V7.5a2.5 2.5 0 015 0v3.74c1.21-.81 2-2.18 2-3.74C16 5.01 13.99 3 11.5 3S7 5.01 7 7.5c0 1.56.79 2.93 2 3.74zm9.84 4.63l-4.54-2.26a1 1 0 00-.6-.1L11 14l.13-4.3c0-.5-.4-.9-.9-.9H9.98a.9.9 0 00-.9.9v6.3l-1.8-.38a1 1 0 00-.86.24l-.84.83 4.5 4.5c.37.37.87.57 1.4.57h5.57a2 2 0 001.96-1.62l.62-3.1a2 2 0 00-.79-1.97z"/></svg>
+            <span>Tracpad</span>
+            <p>Glisser → déplacer la souris</p>
+            <p>Tap → clic gauche</p>
+            <p>2 doigts → clic droit</p>
+          </div>
+        </div>
+        <div class="touchpad-buttons">
+          <button class="touchpad-btn" id="touchpad-btn-left">Clic Gauche</button>
+          <button class="touchpad-btn touchpad-btn-right" id="touchpad-btn-right">Clic Droit</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Barre d'Actions Moniteur (raccourcis rapides) -->
+    <div class="monitor-action-bar">
+      <!-- Groupe Lanceur / Quitter / Plein Écran -->
+      <div class="action-group">
+        <button class="btn btn-action-bar btn-sys" onclick="sendOpenLauncher()" title="Ouvrir le lanceur de la TV">
+          <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+          <span>Lanceur</span>
+        </button>
+        <button class="btn btn-action-bar btn-danger-sys" onclick="sendQuitApp()" title="Quitter l'application active">
+          <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/></svg>
+          <span>Quitter</span>
+        </button>
+        <button class="btn btn-action-bar btn-sys" onclick="sendFullscreen()" title="Bascule plein écran de la TV">
+          <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M5,5H10V7H7V10H5V5M14,5H19V10H17V7H14V5M17,14H19V19H14V17H17V14M7,14H5V19H10V17H7V14Z"/></svg>
+          <span>Plein Écran</span>
+        </button>
+      </div>
+
+      <!-- Groupe Multitâche / Leds Hyperion -->
+      <div class="action-group">
+        <button class="btn btn-action-bar" onclick="sendDirectKey('Super_L')" title="Bascule fenêtres / Multitâche">
+          <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M4 4H10V10H4V4M14 4H20V10H14V4M4 14H10V20H4V14M14 14H20V20H14V14Z"/></svg>
+          <span>Multitâche</span>
+        </button>
+        <div class="btn-group-segmented">
+          <span class="group-label">Leds</span>
+          <button class="btn btn-segment btn-hyp-on" onclick="sendHyperion('on')">ON</button>
+          <button class="btn btn-segment btn-hyp-off" onclick="sendHyperion('off')">OFF</button>
+        </div>
+      </div>
+
+      <!-- Groupe Volume -->
+      <div class="action-group">
+        <div class="btn-group-segmented">
+          <span class="group-label">Son</span>
+          <button class="btn btn-segment" onclick="sendVolume('down')" title="Volume -">
+            <svg viewBox="0 0 24 24" width="10" height="10"><path fill="currentColor" d="M19,13H5V11H19V13Z"/></svg>
+          </button>
+          <button class="btn btn-segment" onclick="sendVolume('mute')" title="Mute">
+            <svg viewBox="0 0 24 24" width="10" height="10"><path fill="currentColor" d="M3.27,3L2,4.27L7.73,10H3V14H7L12,19V14.27L16.58,18.85C15.5,19.68 14.3,20.27 13,20.46V22.48C14.83,22.27 16.5,21.36 17.82,20.1L20.73,23L22,21.73L3.27,3M12,5.5L9.91,7.59L12,9.68V5.5Z"/></svg>
+          </button>
+          <button class="btn btn-segment" onclick="sendVolume('up')" title="Volume +">
+            <svg viewBox="0 0 24 24" width="10" height="10"><path fill="currentColor" d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Groupe Zoom -->
+      <div class="action-group">
+        <div class="btn-group-segmented">
+          <span class="group-label">Zoom</span>
+          <button class="btn btn-segment" onclick="sendZoom('out')" title="Zoom -">
+            <svg viewBox="0 0 24 24" width="10" height="10"><path fill="currentColor" d="M19,13H5V11H19V13Z"/></svg>
+          </button>
+          <button class="btn btn-segment" onclick="sendZoom('reset')" title="Reset Zoom" style="font-size: 0.65rem; font-weight: bold; padding: 0 4px;">100%</button>
+          <button class="btn btn-segment" onclick="sendZoom('in')" title="Zoom +">
+            <svg viewBox="0 0 24 24" width="10" height="10"><path fill="currentColor" d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
+          </button>
+        </div>
+      </div>
     </div>
 
     <footer class="monitor-footer">
-      <div class="fps-control">
+      <div class="fps-control" id="fps-control-row">
         <label for="range-monitor-fps">Rafraîchissement : <span id="val-monitor-fps">2</span> FPS</label>
         <input type="range" id="range-monitor-fps" min="1" max="10" value="2">
       </div>
-      <span class="monitor-tip">Clic droit possible. Activer le contrôle pour envoyer clavier/souris</span>
+      <span class="monitor-tip" id="monitor-tip">Clic droit possible. Activer le contrôle pour envoyer clavier/souris</span>
     </footer>
   </div>
+
 
 </div>
 
@@ -349,12 +441,12 @@
         Choisissez une action pour le PC de la TV :
       </p>
       
-      <div class="modal-actions" style="flex-direction: column; gap: 8px;">
-        <button id="btn-power-shutdown" class="btn btn-primary btn-danger-sys" style="width: 100%; height: 42px; justify-content: center;">🔴 Éteindre le PC</button>
-        <button id="btn-power-reboot" class="btn btn-secondary" style="width: 100%; height: 42px; border-color: rgba(255,255,255,0.1); justify-content: center;">🔄 Redémarrer</button>
-        <hr style="border-color: rgba(255,255,255,0.06); margin: 2px 0;">
-        <button id="btn-system-update" class="btn btn-secondary" style="width: 100%; height: 42px; border-color: rgba(16,185,129,0.25); color: var(--accent-green); justify-content: center;">🔄 Mettre à jour l'app</button>
-        <button id="btn-power-cancel" class="btn btn-secondary" style="width: 100%; height: 42px; border-color: rgba(255,255,255,0.1); justify-content: center;">Annuler</button>
+      <div class="modal-actions modal-actions-column">
+        <button id="btn-power-shutdown" class="btn btn-primary modal-btn-full modal-btn-danger">🔴 Éteindre le PC</button>
+        <button id="btn-power-reboot" class="btn btn-secondary modal-btn-full modal-btn-neutral">🔄 Redémarrer</button>
+        <hr style="border-color: rgba(255,255,255,0.06); margin: 2px 0; width: 100%;">
+        <button id="btn-system-update" class="btn btn-secondary modal-btn-full modal-btn-success">🔄 Mettre à jour l'app</button>
+        <button id="btn-power-cancel" class="btn btn-secondary modal-btn-full modal-btn-neutral">Annuler</button>
       </div>
     </div>
   </div>

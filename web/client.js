@@ -1,35 +1,29 @@
-// client.js - TV Launcher Remote Controller Logic
+// client.js — TV Launcher Remote Controller
 
-// Active modifiers state
-const activeModifiers = {
-  ctrl: false,
-  alt: false,
-  super: false
-};
+// ─── ÉTAT GLOBAL ──────────────────────────────────────────────────────────────
 
-// State variables for CMS and Mouse modes
-let isEditMode = false;
-let mouseMode = 'trackpad'; // Default to 'trackpad'
-let mouseSpeed = 8;         // Default to 8
-let cachedApps = [];        // Local copy of apps list
+const activeModifiers = { ctrl: false, alt: false, super: false };
 
-// Global hooks for gyro controls (assigned in initGyroscope)
-let startGyroscope = () => {};
-let stopGyroscope = () => {};
-
-// Connection status check interval
+let isEditMode     = false;
+let mouseMode      = 'trackpad';
+let mouseSpeed     = 8;
+let cachedApps     = [];
 let statusInterval = null;
 
-// Global settings
+// Hooks gyroscope (assignés dans initGyroscope)
+let startGyroscope = () => {};
+let stopGyroscope  = () => {};
+
 const CONFIG = {
-  apiBase: '',
-  mousePollRateMs: 45, // Rate limit for mouse moves
-  gyroPollRateMs: 40,
+  apiBase:          '',
+  mousePollRateMs:  45,
+  gyroPollRateMs:   40,
   joystickDeadzone: 5,
-  joystickMaxDist: 60, // Maximum distance the handle can move (px)
+  joystickMaxDist:  60,
 };
 
-// Load Apps on Startup
+// ─── INITIALISATION ───────────────────────────────────────────────────────────
+
 document.addEventListener('DOMContentLoaded', () => {
   initNavigation();
   initApps();
@@ -42,60 +36,42 @@ document.addEventListener('DOMContentLoaded', () => {
   initMonitor();
   initPowerModal();
   initUpdateButton();
-  
+
   checkStatus();
   statusInterval = setInterval(checkStatus, 5000);
 });
 
-// ---------------------------------------------------------
-// Navigation (Tab Switching)
-// ---------------------------------------------------------
+// ─── NAVIGATION (ONGLETS) ─────────────────────────────────────────────────────
+
 function initNavigation() {
   const navItems = document.querySelectorAll('.nav-item');
-  const panels = document.querySelectorAll('.tab-panel');
+  const panels   = document.querySelectorAll('.tab-panel');
 
   navItems.forEach(item => {
     item.addEventListener('click', () => {
-      const targetPanelId = item.getAttribute('data-target');
-      
-      // Update nav buttons
-      navItems.forEach(nav => nav.classList.remove('active'));
+      const targetId = item.getAttribute('data-target');
+      navItems.forEach(n => n.classList.remove('active'));
       item.classList.add('active');
-      
-      // Update panels
-      panels.forEach(panel => {
-        panel.classList.remove('active');
-        if (panel.id === targetPanelId) {
-          panel.classList.add('active');
-        }
-      });
-
-      // Vibrate on tap
+      panels.forEach(p => p.classList.toggle('active', p.id === targetId));
       vibrate(10);
     });
   });
 }
 
-// ---------------------------------------------------------
-// API Call Helper
-// ---------------------------------------------------------
+// ─── HELPERS API ET CONNEXION ─────────────────────────────────────────────────
+
 async function apiPost(endpoint, data = {}) {
   try {
     const response = await fetch(`${CONFIG.apiBase}${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data)
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(data),
     });
-    
+    updateConnectionStatus(response.ok);
     if (!response.ok) {
       console.error(`API Error: ${response.statusText}`);
-      updateConnectionStatus(false);
       return null;
     }
-    
-    updateConnectionStatus(true);
     return await response.json();
   } catch (error) {
     console.error('Fetch Error:', error);
@@ -105,16 +81,10 @@ async function apiPost(endpoint, data = {}) {
 }
 
 function updateConnectionStatus(isConnected) {
-  const dot = document.getElementById('status-dot');
+  const dot  = document.getElementById('status-dot');
   const text = document.getElementById('status-text');
-  
-  if (isConnected) {
-    dot.className = 'status-dot online';
-    text.textContent = 'Connecté à tv.local';
-  } else {
-    dot.className = 'status-dot offline';
-    text.textContent = 'Déconnecté';
-  }
+  dot.className    = `status-dot ${isConnected ? 'online' : 'offline'}`;
+  text.textContent = isConnected ? 'Connecté à tv.local' : 'Déconnecté';
 }
 
 async function checkStatus() {
@@ -126,113 +96,87 @@ async function checkStatus() {
   }
 }
 
-// Simple haptic feedback
 function vibrate(ms) {
-  if (navigator.vibrate) {
-    navigator.vibrate(ms);
-  }
+  if (navigator.vibrate) navigator.vibrate(ms);
 }
 
-// ---------------------------------------------------------
-// Panel 1: Apps Launcher
-// ---------------------------------------------------------
+// ─── PANEL 1 : LANCEUR D'APPLICATIONS ────────────────────────────────────────
+
 async function initApps() {
-  const grid = document.getElementById('apps-grid');
+  const grid       = document.getElementById('apps-grid');
   const countBadge = document.getElementById('apps-count');
-  
+
   try {
     const response = await fetch(`${CONFIG.apiBase}/api/apps`);
-    if (!response.ok) throw new Error("Could not fetch apps list");
+    if (!response.ok) throw new Error("Impossible de charger la liste des apps");
     const data = await response.json();
-    
-    grid.innerHTML = '';
+
     cachedApps = data.apps || [];
+    grid.innerHTML   = '';
     countBadge.textContent = cachedApps.length;
-    
+
     if (cachedApps.length === 0) {
       grid.innerHTML = '<p class="loading-placeholder">Aucune application configurée.</p>';
       return;
     }
-    
-    // Toggle edit-mode class on the grid container
-    if (isEditMode) {
-      grid.classList.add('edit-mode');
-    } else {
-      grid.classList.remove('edit-mode');
-    }
-    
+
+    grid.classList.toggle('edit-mode', isEditMode);
+
     cachedApps.forEach((app, index) => {
-      const btn = document.createElement('div'); // Use div in edit mode to avoid button issues
+      const btn = document.createElement('div');
       btn.className = 'app-item-btn';
-      
+
       const iconWrap = document.createElement('div');
       iconWrap.className = 'app-icon-wrapper';
-      
+
       const img = document.createElement('img');
-      img.src = app.icon ? `/${app.icon}` : '/icons/firefox.png';
+      img.src    = app.icon ? `/${app.icon}` : '/icons/firefox.png';
       img.onerror = () => { img.src = '/icons/firefox.png'; };
-      
       iconWrap.appendChild(img);
-      
+
       const name = document.createElement('span');
-      name.className = 'app-name';
+      name.className   = 'app-name';
       name.textContent = app.name;
-      
+
       btn.appendChild(iconWrap);
       btn.appendChild(name);
-      
+
       if (isEditMode) {
-        // 1. Delete Button
+        // Bouton supprimer
         const delBtn = document.createElement('div');
         delBtn.className = 'btn-delete-app';
         delBtn.innerHTML = '✕';
-        delBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          deleteApp(app.id, app.name);
-        });
+        delBtn.addEventListener('click', e => { e.stopPropagation(); deleteApp(app.id, app.name); });
         btn.appendChild(delBtn);
-        
-        // 2. Edit Button
+
+        // Bouton éditer
         const editBtn = document.createElement('div');
         editBtn.className = 'btn-edit-app';
         editBtn.innerHTML = '✏️';
-        editBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          openAppEditModal(app);
-        });
+        editBtn.addEventListener('click', e => { e.stopPropagation(); openAppEditModal(app); });
         btn.appendChild(editBtn);
-        
-        // 3. Reorder buttons (arrows)
+
+        // Boutons de réorganisation
         const reorderWrap = document.createElement('div');
         reorderWrap.className = 'app-reorder-actions';
-        
+
         const leftArrow = document.createElement('div');
         leftArrow.className = 'btn-reorder';
         leftArrow.innerHTML = '◀';
-        leftArrow.addEventListener('click', (e) => {
-          e.stopPropagation();
-          moveAppInList(index, -1);
-        });
-        
+        leftArrow.addEventListener('click', e => { e.stopPropagation(); moveAppInList(index, -1); });
+
         const rightArrow = document.createElement('div');
         rightArrow.className = 'btn-reorder';
         rightArrow.innerHTML = '▶';
-        rightArrow.addEventListener('click', (e) => {
-          e.stopPropagation();
-          moveAppInList(index, 1);
-        });
-        
+        rightArrow.addEventListener('click', e => { e.stopPropagation(); moveAppInList(index, 1); });
+
         reorderWrap.appendChild(leftArrow);
         reorderWrap.appendChild(rightArrow);
         btn.appendChild(reorderWrap);
       } else {
-        // Standard launch app click listener
-        btn.addEventListener('click', () => {
-          vibrate(25);
-          launchApp(app.id);
-        });
+        btn.addEventListener('click', () => { vibrate(25); launchApp(app.id); });
       }
-      
+
       grid.appendChild(btn);
     });
   } catch (e) {
@@ -246,70 +190,46 @@ function launchApp(appId) {
 }
 
 function initUrlLauncher() {
-  const urlInput = document.getElementById('custom-url-input');
+  const urlInput      = document.getElementById('custom-url-input');
   const browserSelect = document.getElementById('custom-url-browser');
-  const openBtn = document.getElementById('btn-open-url');
-  
+  const openBtn       = document.getElementById('btn-open-url');
+
   openBtn.addEventListener('click', () => {
     const rawUrl = urlInput.value.trim();
     if (!rawUrl) return;
-    
     vibrate(30);
-    // Auto-prepend http:// if not present
-    let url = rawUrl;
-    if (!/^https?:\/\//i.test(url)) {
-      url = 'http://' + url;
-    }
-    
-    apiPost('/api/launch-url', {
-      url: url,
-      browser: browserSelect.value
-    });
+    const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : `http://${rawUrl}`;
+    apiPost('/api/launch-url', { url, browser: browserSelect.value });
   });
 }
 
-// ---------------------------------------------------------
-// Panel 2: Keyboard simulation
-// ---------------------------------------------------------
+// ─── PANEL 2 : CLAVIER ────────────────────────────────────────────────────────
+
 function initKeyboard() {
-  const textInput = document.getElementById('keyboard-text-input');
-  const sendBtn = document.getElementById('btn-send-text');
-  const modifierBtns = document.querySelectorAll('.btn-modifier');
+  const textInput      = document.getElementById('keyboard-text-input');
+  const sendBtn        = document.getElementById('btn-send-text');
+  const modifierBtns   = document.querySelectorAll('.btn-modifier');
   const virtualEnterBtn = document.getElementById('btn-virtual-enter');
-  
-  // Text submission
-  sendBtn.addEventListener('click', () => {
+
+  const sendText = () => {
     const text = textInput.value;
-    if (text) {
-      vibrate(20);
-      apiPost('/api/keyboard/type', { text: text });
-      textInput.value = '';
-      
-      // Reset modifier keys after text submission
-      resetModifiers();
-    }
-  });
-  
-  textInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      sendBtn.click();
-    }
-  });
+    if (!text) return;
+    vibrate(20);
+    apiPost('/api/keyboard/type', { text });
+    textInput.value = '';
+    resetModifiers();
+  };
+
+  sendBtn.addEventListener('click', sendText);
+  textInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendText(); });
 
   if (virtualEnterBtn) {
     virtualEnterBtn.addEventListener('click', () => {
-      const text = textInput.value;
-      if (text) {
-        vibrate(20);
-        apiPost('/api/keyboard/type', { text: text });
-        textInput.value = '';
-        resetModifiers();
-      }
+      sendText();
       sendDirectKey('Return');
     });
   }
-  
-  // Modifier key buttons (Ctrl, Alt, Win toggles)
+
   modifierBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       const modifier = btn.getAttribute('data-key');
@@ -321,151 +241,111 @@ function initKeyboard() {
 }
 
 function resetModifiers() {
-  const modifierBtns = document.querySelectorAll('.btn-modifier');
-  Object.keys(activeModifiers).forEach(k => {
-    activeModifiers[k] = false;
-  });
-  modifierBtns.forEach(btn => btn.classList.remove('active'));
+  Object.keys(activeModifiers).forEach(k => { activeModifiers[k] = false; });
+  document.querySelectorAll('.btn-modifier').forEach(btn => btn.classList.remove('active'));
 }
 
-// Send keyboard shortcut
 function sendKey(keyName) {
   vibrate(15);
-  
-  // Gather active modifiers
   const modifiersList = [];
-  if (activeModifiers.ctrl) modifiersList.push('ctrl');
-  if (activeModifiers.alt) modifiersList.push('alt');
+  if (activeModifiers.ctrl)  modifiersList.push('ctrl');
+  if (activeModifiers.alt)   modifiersList.push('alt');
   if (activeModifiers.super) modifiersList.push('super');
-  
-  apiPost('/api/keyboard/key', {
-    key: keyName,
-    modifiers: modifiersList
-  });
-  
-  // Reset modifier toggles after sending a standard key press
+  apiPost('/api/keyboard/key', { key: keyName, modifiers: modifiersList });
   resetModifiers();
 }
 
-// Send keyboard shortcut directly (without active modifier toggles state)
 function sendDirectKey(keyName, modifiers = []) {
   vibrate(20);
-  apiPost('/api/keyboard/key', {
-    key: keyName,
-    modifiers: modifiers
-  });
+  apiPost('/api/keyboard/key', { key: keyName, modifiers });
 }
 
-// ---------------------------------------------------------
-// Panel 2: Mouse Joystick Pointer Controller
-// ---------------------------------------------------------
+// ─── PANEL 2 : JOYSTICK / TRACKPAD / GYROSCOPE ───────────────────────────────
+
 function initJoystick() {
-  const pad = document.getElementById('joystick-pad');
-  const handle = document.getElementById('joystick-handle');
-  const label = document.getElementById('mouse-control-label');
-  const speedSlider = document.getElementById('mouse-speed');
-  const speedVal = document.getElementById('mouse-speed-val');
-  
-  const modeJoyBtn = document.getElementById('mode-joystick');
-  const modeTrackBtn = document.getElementById('mode-trackpad');
-  const modeGyroBtn = document.getElementById('mode-gyro');
-
+  const pad            = document.getElementById('joystick-pad');
+  const handle         = document.getElementById('joystick-handle');
+  const label          = document.getElementById('mouse-control-label');
+  const speedSlider    = document.getElementById('mouse-speed');
+  const speedVal       = document.getElementById('mouse-speed-val');
+  const modeJoyBtn     = document.getElementById('mode-joystick');
+  const modeTrackBtn   = document.getElementById('mode-trackpad');
+  const modeGyroBtn    = document.getElementById('mode-gyro');
   const speedContainer = document.getElementById('mouse-speed-container');
-  const gyroContainer = document.getElementById('gyro-settings-container');
-  
-  let padBounds = null;
-  let isDragging = false;
-  let joystickX = 0; // Value from -1 to 1 representing displacement
-  let joystickY = 0; 
-  let movementTimer = null; // Timer for continuous pointer movement
-  
-  // Trackpad movement deltas
-  let prevX = 0;
-  let prevY = 0;
+  const gyroContainer  = document.getElementById('gyro-settings-container');
 
-  // Touch scroll state
-  let prevTouchX = 0;
-  let prevTouchY = 0;
-  let isScrolling = false;
+  let padBounds    = null;
+  let isDragging   = false;
+  let joystickX    = 0;
+  let joystickY    = 0;
+  let movementTimer = null;
 
-  // Tap detection variables
-  let touchStartX = 0;
-  let touchStartY = 0;
-  let touchStartTime = 0;
-  let hasMoved = false;
-  let lastX = 0;
-  let lastY = 0;
+  // Trackpad
+  let prevX = 0, prevY = 0;
 
-  // 1. Mouse speed / sensitivity slider setup
+  // Deux doigts (scroll)
+  let prevTouchX = 0, prevTouchY = 0, isScrolling = false;
+
+  // Détection de tap
+  let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+  let hasMoved = false, lastX = 0, lastY = 0;
+
+  // Slider vitesse
   speedSlider.addEventListener('input', () => {
     mouseSpeed = parseInt(speedSlider.value);
     speedVal.textContent = mouseSpeed;
   });
 
-  // 2. Mouse Mode selector setup (Joystick vs Trackpad vs Gyro)
-  const setMouseMode = (mode) => {
-    if (mouseMode === 'gyro' && mode !== 'gyro') {
-      stopGyroscope();
-    }
-    
+  // Sélecteur de mode
+  const setMouseMode = mode => {
+    if (mouseMode === 'gyro' && mode !== 'gyro') stopGyroscope();
     mouseMode = mode;
-    
-    // Toggle active state on buttons
+
     modeJoyBtn.classList.toggle('active', mode === 'joystick');
     modeTrackBtn.classList.toggle('active', mode === 'trackpad');
     modeGyroBtn.classList.toggle('active', mode === 'gyro');
-    
-    // Toggle class and display containers
+
     if (mode === 'joystick') {
       pad.classList.remove('trackpad-mode');
       speedContainer.style.display = '';
-      gyroContainer.style.display = 'none';
+      gyroContainer.style.display  = 'none';
       label.textContent = "Glissez pour déplacer (Joystick)";
     } else if (mode === 'trackpad') {
       pad.classList.add('trackpad-mode');
       speedContainer.style.display = '';
-      gyroContainer.style.display = 'none';
+      gyroContainer.style.display  = 'none';
       label.textContent = "Glissez pour déplacer, Tapez G/D pour cliquer";
     } else if (mode === 'gyro') {
-      pad.classList.add('trackpad-mode'); // Gyro also uses rectangular pad for clicks
+      pad.classList.add('trackpad-mode');
       speedContainer.style.display = 'none';
-      gyroContainer.style.display = 'flex';
+      gyroContainer.style.display  = 'flex';
       label.textContent = "Inclinez le téléphone, Tapez G/D pour cliquer";
-      
-      // Auto-start gyroscope
       startGyroscope();
     }
-    
+
     vibrate(15);
-    onDragEnd(); // Reset dragging state
+    onDragEnd();
   };
 
-  modeJoyBtn.addEventListener('click', () => setMouseMode('joystick'));
+  modeJoyBtn.addEventListener('click',   () => setMouseMode('joystick'));
   modeTrackBtn.addEventListener('click', () => setMouseMode('trackpad'));
-  modeGyroBtn.addEventListener('click', () => setMouseMode('gyro'));
+  modeGyroBtn.addEventListener('click',  () => setMouseMode('gyro'));
 
-  // Initialize bounds on touch start to support scrolling/rotations
-  const updatePadBounds = () => {
-    padBounds = pad.getBoundingClientRect();
-  };
+  const updatePadBounds = () => { padBounds = pad.getBoundingClientRect(); };
 
-  const onDragStart = (e) => {
+  const onDragStart = e => {
     isDragging = true;
     pad.classList.add('active');
     vibrate(10);
-    
+
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    
-    // Tap detection setup
-    touchStartX = clientX;
-    touchStartY = clientY;
-    lastX = clientX;
-    lastY = clientY;
+
+    touchStartX = lastX = clientX;
+    touchStartY = lastY = clientY;
     touchStartTime = Date.now();
     hasMoved = false;
 
-    // Two-finger scroll detection
     if (e.touches && e.touches.length === 2) {
       prevTouchX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
       prevTouchY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
@@ -473,99 +353,65 @@ function initJoystick() {
     } else {
       isScrolling = false;
     }
-    
+
     if (mouseMode === 'trackpad') {
       prevX = clientX;
       prevY = clientY;
     } else if (mouseMode === 'joystick') {
       updatePadBounds();
       onDragMove(e);
-      // Start interval to continuously move pointer based on joystick tilt
       if (movementTimer) clearInterval(movementTimer);
       movementTimer = setInterval(moveMouseFromJoystick, CONFIG.mousePollRateMs);
     }
-    
-    if (e.cancelable && mouseMode !== 'gyro') {
-      e.preventDefault();
-    }
+
+    if (e.cancelable && mouseMode !== 'gyro') e.preventDefault();
   };
 
-  const onDragMove = (e) => {
+  const onDragMove = e => {
     if (!isDragging) return;
 
-    // Check if scrolling with two fingers
+    // Défilement à deux doigts
     if (e.touches && e.touches.length === 2) {
       const touchX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
       const touchY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-      
-      if (!isScrolling) {
-        isScrolling = true;
-        prevTouchX = touchX;
-        prevTouchY = touchY;
-        return;
-      }
-      
-      const dx = touchX - prevTouchX;
+      if (!isScrolling) { isScrolling = true; prevTouchX = touchX; prevTouchY = touchY; return; }
+
       const dy = touchY - prevTouchY;
-      
-      const scrollThreshold = 10;
-      if (Math.abs(dy) > scrollThreshold) {
+      if (Math.abs(dy) > 10) {
         const direction = dy > 0 ? "down" : "up";
-        const clicks = Math.min(3, Math.max(1, Math.round(Math.abs(dy) / scrollThreshold)));
-        apiPost('/api/mouse/scroll', { direction: direction, clicks: clicks });
+        const clicks    = Math.min(3, Math.max(1, Math.round(Math.abs(dy) / 10)));
+        apiPost('/api/mouse/scroll', { direction, clicks });
         prevTouchX = touchX;
         prevTouchY = touchY;
       }
-      return; // Skip normal cursor move
+      return;
     }
-    
+
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    
     lastX = clientX;
     lastY = clientY;
-    
-    const displacementX = Math.abs(clientX - touchStartX);
-    const displacementY = Math.abs(clientY - touchStartY);
-    if (displacementX > 8 || displacementY > 8) {
-      hasMoved = true;
-    }
-    
+
+    if (Math.abs(clientX - touchStartX) > 8 || Math.abs(clientY - touchStartY) > 8) hasMoved = true;
+
     if (mouseMode === 'trackpad') {
-      const dx = clientX - prevX;
-      const dy = clientY - prevY;
-      
-      // Scale displacement based on speed slider
       const speedScale = mouseSpeed * 0.45;
-      const moveX = Math.round(dx * speedScale);
-      const moveY = Math.round(dy * speedScale);
-      
+      const moveX = Math.round((clientX - prevX) * speedScale);
+      const moveY = Math.round((clientY - prevY) * speedScale);
       if (moveX !== 0 || moveY !== 0) {
         apiPost('/api/mouse/move', { dx: moveX, dy: moveY });
         prevX = clientX;
         prevY = clientY;
       }
     } else if (mouseMode === 'joystick') {
-      const padCenterX = padBounds.left + padBounds.width / 2;
-      const padCenterY = padBounds.top + padBounds.height / 2;
-      
-      // Relative displacement vector
-      let dx = clientX - padCenterX;
-      let dy = clientY - padCenterY;
-      
-      // Calculate distance
+      let dx = clientX - (padBounds.left + padBounds.width  / 2);
+      let dy = clientY - (padBounds.top  + padBounds.height / 2);
       const dist = Math.sqrt(dx * dx + dy * dy);
-      
-      // Constraint displacement to circle perimeter
       if (dist > CONFIG.joystickMaxDist) {
         dx = (dx / dist) * CONFIG.joystickMaxDist;
         dy = (dy / dist) * CONFIG.joystickMaxDist;
       }
-      
-      // Set handle style offset
       handle.style.transform = `translate(${dx}px, ${dy}px)`;
-      
-      // Normalize values between -1.0 and 1.0
       joystickX = dx / CONFIG.joystickMaxDist;
       joystickY = dy / CONFIG.joystickMaxDist;
     }
@@ -575,122 +421,85 @@ function initJoystick() {
     if (!isDragging) return;
     isDragging = false;
     pad.classList.remove('active');
-    
-    const duration = Date.now() - touchStartTime;
-    const displacementX = Math.abs(lastX - touchStartX);
-    const displacementY = Math.abs(lastY - touchStartY);
-    const totalDist = Math.sqrt(displacementX * displacementX + displacementY * displacementY);
-    
-    // Tap-to-click detection
-    if ((mouseMode === 'trackpad' || mouseMode === 'gyro') && 
+
+    const duration   = Date.now() - touchStartTime;
+    const distX      = Math.abs(lastX - touchStartX);
+    const distY      = Math.abs(lastY - touchStartY);
+    const totalDist  = Math.sqrt(distX * distX + distY * distY);
+
+    // Clic par tap
+    if ((mouseMode === 'trackpad' || mouseMode === 'gyro') &&
         (!hasMoved || (duration < 250 && totalDist < 15))) {
-      // It's a tap! Click Left or Right based on position
-      const rect = pad.getBoundingClientRect();
+      const rect   = pad.getBoundingClientRect();
       const clickX = lastX - rect.left;
-      
       vibrate(20);
-      if (clickX < rect.width / 2) {
-        apiPost('/api/mouse/click', { button: 'left' });
-      } else {
-        apiPost('/api/mouse/click', { button: 'right' });
-      }
+      apiPost('/api/mouse/click', { button: clickX < rect.width / 2 ? 'left' : 'right' });
     }
-    
+
     if (mouseMode === 'joystick') {
-      // Animate stick snap-back to center
       handle.style.transition = 'transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-      handle.style.transform = 'translate(0px, 0px)';
-      
+      handle.style.transform  = 'translate(0px, 0px)';
       joystickX = 0;
       joystickY = 0;
-      
-      if (movementTimer) {
-        clearInterval(movementTimer);
-        movementTimer = null;
-      }
-      
-      setTimeout(() => {
-        handle.style.transition = '';
-      }, 150);
+      if (movementTimer) { clearInterval(movementTimer); movementTimer = null; }
+      setTimeout(() => { handle.style.transition = ''; }, 150);
     }
   };
 
-  // Joystick/Trackpad Events (Mouse + Touch)
-  pad.addEventListener('touchstart', onDragStart, { passive: false });
-  window.addEventListener('touchmove', onDragMove, { passive: false });
-  window.addEventListener('touchend', onDragEnd);
-  
-  pad.addEventListener('mousedown', onDragStart);
-  window.addEventListener('mousemove', onDragMove);
-  window.addEventListener('mouseup', onDragEnd);
+  pad.addEventListener('touchstart',     onDragStart, { passive: false });
+  window.addEventListener('touchmove',   onDragMove,  { passive: false });
+  window.addEventListener('touchend',    onDragEnd);
+  pad.addEventListener('mousedown',      onDragStart);
+  window.addEventListener('mousemove',   onDragMove);
+  window.addEventListener('mouseup',     onDragEnd);
 
-  // Send relative mouse movement to server (Joystick continuous poll)
   function moveMouseFromJoystick() {
     if (!isDragging || mouseMode !== 'joystick') return;
-    
-    // Check deadzone
     const dist = Math.sqrt(joystickX * joystickX + joystickY * joystickY) * CONFIG.joystickMaxDist;
     if (dist < CONFIG.joystickDeadzone) return;
-    
-    // Speed curves based on displacement and mouseSpeed slider settings
     const speedMultiplier = 25 * (mouseSpeed / 5);
     const moveX = Math.round(Math.sign(joystickX) * Math.pow(Math.abs(joystickX), 1.5) * speedMultiplier);
     const moveY = Math.round(Math.sign(joystickY) * Math.pow(Math.abs(joystickY), 1.5) * speedMultiplier);
-    
-    if (moveX !== 0 || moveY !== 0) {
-      apiPost('/api/mouse/move', { dx: moveX, dy: moveY });
-    }
+    if (moveX !== 0 || moveY !== 0) apiPost('/api/mouse/move', { dx: moveX, dy: moveY });
   }
 
-  // Set default mode and speed on load
-  speedSlider.value = mouseSpeed;
+  speedSlider.value    = mouseSpeed;
   speedVal.textContent = mouseSpeed;
   setMouseMode(mouseMode);
 }
 
 function initMouseButtons() {
-  const leftClick = document.getElementById('btn-click-left');
-  const rightClick = document.getElementById('btn-click-right');
-  
-  leftClick.addEventListener('click', () => {
-    vibrate(20);
-    apiPost('/api/mouse/click', { button: 'left' });
+  document.getElementById('btn-click-left').addEventListener('click', () => {
+    vibrate(20); apiPost('/api/mouse/click', { button: 'left' });
   });
-  
-  rightClick.addEventListener('click', () => {
-    vibrate(20);
-    apiPost('/api/mouse/click', { button: 'right' });
+  document.getElementById('btn-click-right').addEventListener('click', () => {
+    vibrate(20); apiPost('/api/mouse/click', { button: 'right' });
   });
 }
 
-// ---------------------------------------------------------
-// Panel 3: Gyroscope Mouse Controller
-// ---------------------------------------------------------
+// ─── PANEL 2 : GYROSCOPE ─────────────────────────────────────────────────────
+
 function initGyroscope() {
-  const status = document.getElementById('gyro-status');
+  const status    = document.getElementById('gyro-status');
   const sensSlider = document.getElementById('gyro-sens');
-  const sensValue = document.getElementById('gyro-sens-val');
-  const calibBtn = document.getElementById('btn-gyro-calibrate');
-  
-  let isGyroActive = false;
-  let gyroSensitivity = parseInt(sensSlider.value);
-  
-  // Baselines for orientation (neutral phone posture)
-  let baseBeta = null;
+  const sensValue  = document.getElementById('gyro-sens-val');
+  const calibBtn   = document.getElementById('btn-gyro-calibrate');
+
+  let isGyroActive     = false;
+  let gyroSensitivity  = parseInt(sensSlider.value);
+  let baseBeta  = null;
   let baseGamma = null;
-  
-  // Accumulators for throttling orientation inputs
   let accumulatedDx = 0;
   let accumulatedDy = 0;
-  let lastSendTime = 0;
+  let lastSendTime  = 0;
 
   sensSlider.addEventListener('input', () => {
-    gyroSensitivity = parseInt(sensSlider.value);
+    gyroSensitivity   = parseInt(sensSlider.value);
     sensValue.textContent = gyroSensitivity;
   });
 
   calibBtn.addEventListener('click', () => {
-    baseBeta = null; // Forces re-calibration on next frame
+    baseBeta = null;
     vibrate(40);
     status.textContent = 'Calibré ! Nouveau neutre enregistré.';
     setTimeout(() => {
@@ -699,28 +508,21 @@ function initGyroscope() {
   });
 
   async function startGyro() {
-    // Check if device orientation API is available
     if (!window.DeviceOrientationEvent) {
       status.textContent = 'Erreur : Capteur non supporté par ce navigateur.';
       return;
     }
-
-    // iOS requires permission dialog
     if (typeof DeviceOrientationEvent.requestPermission === 'function') {
       try {
         const permission = await DeviceOrientationEvent.requestPermission();
-        if (permission !== 'granted') {
-          status.textContent = 'Accès au capteur refusé.';
-          return;
-        }
+        if (permission !== 'granted') { status.textContent = 'Accès au capteur refusé.'; return; }
       } catch (err) {
         status.textContent = 'Erreur autorisation gyroscope : ' + err.message;
         return;
       }
     }
-
     isGyroActive = true;
-    baseBeta = null; // Re-calibrate on startup
+    baseBeta     = null;
     status.textContent = 'Initialisation... Mettez le téléphone à plat.';
     window.addEventListener('deviceorientation', handleOrientation);
     vibrate([30, 50, 30]);
@@ -733,175 +535,99 @@ function initGyroscope() {
     vibrate(30);
   }
 
-  // Expose methods to global scope
   startGyroscope = startGyro;
-  stopGyroscope = stopGyro;
+  stopGyroscope  = stopGyro;
 
   function handleOrientation(e) {
     if (!isGyroActive) return;
-
-    let beta = e.beta;   // front-back tilt [-180, 180]
-    let gamma = e.gamma; // left-right tilt [-90, 90]
-
+    const beta  = e.beta;
+    const gamma = e.gamma;
     if (beta === null || gamma === null) return;
 
-    // First frame calibration
     if (baseBeta === null || baseGamma === null) {
-      baseBeta = beta;
-      baseGamma = gamma;
+      baseBeta = beta; baseGamma = gamma;
       status.textContent = 'Actif. Inclinez le téléphone.';
       return;
     }
 
-    // Calculate angular offset from baseline
     let dGamma = gamma - baseGamma;
-    let dBeta = beta - baseBeta;
+    let dBeta  = beta  - baseBeta;
 
-    // Handle wrapping issues if any (less common for remote usage)
-    if (dGamma > 180) dGamma -= 360;
-    if (dGamma < -180) dGamma += 360;
-    if (dBeta > 180) dBeta -= 360;
-    if (dBeta < -180) dBeta += 360;
+    // Correction de wrap
+    if (dGamma > 180) dGamma -= 360; else if (dGamma < -180) dGamma += 360;
+    if (dBeta  > 180) dBeta  -= 360; else if (dBeta  < -180) dBeta  += 360;
 
-    // Simple deadzone to prevent shaking hands from jittering the cursor
     const deadzone = 0.6;
-    let dx = 0;
-    let dy = 0;
+    accumulatedDx += Math.abs(dGamma) > deadzone ? dGamma * gyroSensitivity : 0;
+    accumulatedDy += Math.abs(dBeta)  > deadzone ? -dBeta * gyroSensitivity : 0;
 
-    if (Math.abs(dGamma) > deadzone) {
-      // Map Left/Right tilt to Mouse X movement
-      dx = dGamma * gyroSensitivity;
-    }
-    
-    if (Math.abs(dBeta) > deadzone) {
-      // Map Up/Down tilt to Mouse Y movement (inverted Y-axis)
-      dy = -dBeta * gyroSensitivity;
-    }
-
-    // Accumulate movement delta
-    accumulatedDx += dx;
-    accumulatedDy += dy;
-
-    // Throttle networking requests
     const now = Date.now();
     if (now - lastSendTime >= CONFIG.gyroPollRateMs) {
-      sendGyroMove();
+      const rx = Math.round(accumulatedDx);
+      const ry = Math.round(accumulatedDy);
+      accumulatedDx = 0;
+      accumulatedDy = 0;
+      if (rx !== 0 || ry !== 0) apiPost('/api/mouse/move', { dx: rx, dy: ry });
       lastSendTime = now;
     }
   }
-
-  function sendGyroMove() {
-    const rx = Math.round(accumulatedDx);
-    const ry = Math.round(accumulatedDy);
-
-    // Clear accumulator
-    accumulatedDx = 0;
-    accumulatedDy = 0;
-
-    if (rx !== 0 || ry !== 0) {
-      apiPost('/api/mouse/move', { dx: rx, dy: ry });
-    }
-  }
 }
 
-// ---------------------------------------------------------
-// Panel 3: Other Remote API calls
-// ---------------------------------------------------------
-function sendVolume(action) {
-  vibrate(15);
-  apiPost('/api/volume', { action: action });
-}
+// ─── PANEL 3 : TÉLÉCOMMANDE ───────────────────────────────────────────────────
+
+function sendVolume(action)  { vibrate(15); apiPost('/api/volume',     { action }); }
+function sendFullscreen()    { vibrate(25); apiPost('/api/fullscreen'); }
+function sendQuitApp()       { vibrate(30); apiPost('/api/quit-app');  }
+function sendOpenLauncher()  { vibrate(25); apiPost('/api/system/open-launcher'); }
+function sendZoom(level)     { vibrate(15); apiPost('/api/zoom',       { action: level }); }
+function sendMedia(action)   { vibrate(20); apiPost('/api/media',      { action }); }
 
 function sendHyperion(action) {
   vibrate(30);
-  
-  // Set active buttons style for Hyperion toggle
-  const onBtn = document.querySelector('.btn-hyp-on');
+  const onBtn  = document.querySelector('.btn-hyp-on');
   const offBtn = document.querySelector('.btn-hyp-off');
-  
   if (onBtn && offBtn) {
-    if (action === 'on') {
-      onBtn.classList.add('active');
-      offBtn.classList.remove('active');
-    } else {
-      onBtn.classList.remove('active');
-      offBtn.classList.add('active');
-    }
+    onBtn.classList.toggle('active',  action === 'on');
+    offBtn.classList.toggle('active', action === 'off');
   }
-  
-  apiPost('/api/hyperion', { action: action });
+  apiPost('/api/hyperion', { action });
 }
 
-function sendFullscreen() {
-  vibrate(25);
-  apiPost('/api/fullscreen');
-}
-
-function sendQuitApp() {
-  vibrate(30);
-  apiPost('/api/quit-app');
-}
-
-function sendZoom(level) {
-  vibrate(15);
-  apiPost('/api/zoom', { action: level });
-}
-
-function sendMedia(action) {
-  vibrate(20);
-  apiPost('/api/media', { action: action });
-}
+// ─── MODAL ALIMENTATION (SHUTDOWN / REBOOT) ───────────────────────────────────
 
 function initPowerModal() {
-  const powerModal = document.getElementById('power-modal');
+  const powerModal  = document.getElementById('power-modal');
   const btnShutdown = document.getElementById('btn-power-shutdown');
-  const btnReboot = document.getElementById('btn-power-reboot');
-  const btnCancel = document.getElementById('btn-power-cancel');
-  
+  const btnReboot   = document.getElementById('btn-power-reboot');
+  const btnCancel   = document.getElementById('btn-power-cancel');
   if (!powerModal || !btnShutdown || !btnReboot || !btnCancel) return;
-  
+
   btnShutdown.addEventListener('click', () => {
     vibrate([50, 100, 50]);
     apiPost('/api/system/shutdown');
     hidePowerModal();
   });
-  
   btnReboot.addEventListener('click', () => {
     vibrate([30, 80, 30]);
     apiPost('/api/system/reboot');
     hidePowerModal();
   });
-  
-  btnCancel.addEventListener('click', () => {
-    hidePowerModal();
-  });
-  
-  powerModal.addEventListener('click', (e) => {
-    if (e.target.id === 'power-modal') {
-      hidePowerModal();
-    }
-  });
+  btnCancel.addEventListener('click', hidePowerModal);
+  powerModal.addEventListener('click', e => { if (e.target.id === 'power-modal') hidePowerModal(); });
 }
 
 function showPowerModal() {
   vibrate(20);
-  const powerModal = document.getElementById('power-modal');
-  if (powerModal) {
-    powerModal.classList.add('active');
-  }
+  document.getElementById('power-modal')?.classList.add('active');
 }
 
 function hidePowerModal() {
   vibrate(10);
-  const powerModal = document.getElementById('power-modal');
-  if (powerModal) {
-    powerModal.classList.remove('active');
-  }
+  document.getElementById('power-modal')?.classList.remove('active');
 }
 
-// ---------------------------------------------------------
-// System Update Button
-// ---------------------------------------------------------
+// ─── MISE À JOUR DU SYSTÈME ───────────────────────────────────────────────────
+
 function initUpdateButton() {
   const btn = document.getElementById('btn-system-update');
   if (!btn) return;
@@ -909,122 +635,85 @@ function initUpdateButton() {
   btn.addEventListener('click', async () => {
     if (btn.disabled) return;
     vibrate(30);
-
-    // Close power modal first
     hidePowerModal();
 
-    // Visual feedback
-    const original = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '⏳ Mise à jour...';
+    const original  = btn.innerHTML;
+    btn.disabled    = true;
+    btn.innerHTML   = '⏳ Mise à jour...';
     btn.style.opacity = '0.6';
 
-    try {
-      await apiPost('/api/system/update');
-    } catch (e) {
-      console.error('Update error:', e);
-    }
+    try { await apiPost('/api/system/update'); }
+    catch (e) { console.error('Update error:', e); }
 
-    // Show reconnecting state
     btn.innerHTML = '🔄 Redémarrage...';
 
-    // Poll until server comes back
     let attempts = 0;
-    const maxAttempts = 30; // 30s
     const pollInterval = setInterval(async () => {
       attempts++;
       try {
         const r = await fetch('/api/status', { cache: 'no-store' });
         if (r.ok) {
           clearInterval(pollInterval);
-          btn.innerHTML = '✅ À jour !';
+          btn.innerHTML     = '✅ À jour !';
           btn.style.opacity = '1';
-          setTimeout(() => {
-            btn.innerHTML = original;
-            btn.disabled = false;
-          }, 2500);
-          // Reload page to get fresh JS/HTML
+          setTimeout(() => { btn.innerHTML = original; btn.disabled = false; }, 2500);
           setTimeout(() => location.reload(), 3000);
         }
-      } catch (_) {
-        // Server restarting, keep polling
-      }
-      if (attempts >= maxAttempts) {
+      } catch (_) { /* serveur en cours de redémarrage */ }
+      if (attempts >= 30) {
         clearInterval(pollInterval);
-        btn.innerHTML = '⚠️ Timeout';
+        btn.innerHTML     = '⚠️ Timeout';
         btn.style.opacity = '1';
-        setTimeout(() => {
-          btn.innerHTML = original;
-          btn.disabled = false;
-        }, 3000);
+        setTimeout(() => { btn.innerHTML = original; btn.disabled = false; }, 3000);
       }
     }, 1000);
   });
 }
 
+// ─── PANEL 1 : CMS APPLICATIONS (AJOUTER / ÉDITER / SUPPRIMER / RÉORGANISER) ─
 
-// ---------------------------------------------------------
-// Panel 1: Apps CMS (Add, Edit, Delete, Reorder)
-// ---------------------------------------------------------
 function initAppsCMS() {
   const editModeBtn = document.getElementById('btn-edit-mode');
-  const favUrlBtn = document.getElementById('btn-fav-url');
-  
-  const cancelBtn = document.getElementById('btn-modal-cancel');
-  const saveBtn = document.getElementById('btn-modal-save');
-  
-  // Toggle Edit Mode
+  const favUrlBtn   = document.getElementById('btn-fav-url');
+  const cancelBtn   = document.getElementById('btn-modal-cancel');
+  const saveBtn     = document.getElementById('btn-modal-save');
+
   editModeBtn.addEventListener('click', () => {
     isEditMode = !isEditMode;
     editModeBtn.classList.toggle('active', isEditMode);
     vibrate(20);
-    // Reload apps layout in edit mode
     initApps();
   });
-  
-  // Custom URL Star -> Open Add Favorite Modal
-  favUrlBtn.addEventListener('click', () => {
-    vibrate(15);
-    openAddFavModal();
-  });
-  
-  // Modal buttons
+
+  favUrlBtn.addEventListener('click', () => { vibrate(15); openAddFavModal(); });
   cancelBtn.addEventListener('click', hideModal);
-  saveBtn.addEventListener('click', saveModal);
-  
-  // Close modal when tapping outside card
-  document.getElementById('app-modal').addEventListener('click', (e) => {
-    if (e.target.id === 'app-modal') {
-      hideModal();
-    }
+  saveBtn.addEventListener('click',   saveModal);
+
+  document.getElementById('app-modal').addEventListener('click', e => {
+    if (e.target.id === 'app-modal') hideModal();
   });
 }
 
 function openAddFavModal() {
   const customUrlInput = document.getElementById('custom-url-input');
-  
-  document.getElementById('modal-title').textContent = "Épingler aux Favoris";
-  document.getElementById('modal-app-id').value = "";
-  document.getElementById('modal-app-name').value = "";
-  document.getElementById('modal-app-browser').value = document.getElementById('custom-url-browser').value;
-  
-  // Auto-prefill URL
+  document.getElementById('modal-title').textContent   = "Épingler aux Favoris";
+  document.getElementById('modal-app-id').value        = "";
+  document.getElementById('modal-app-name').value      = "";
+  document.getElementById('modal-app-browser').value   = document.getElementById('custom-url-browser').value;
+
   let url = customUrlInput.value.trim();
-  if (url && !/^https?:\/\//i.test(url)) {
-    url = 'http://' + url;
-  }
+  if (url && !/^https?:\/\//i.test(url)) url = `http://${url}`;
   document.getElementById('modal-app-url').value = url;
-  
+
   document.getElementById('app-modal').classList.add('active');
 }
 
 function openAppEditModal(app) {
-  document.getElementById('modal-title').textContent = "Modifier l'Application";
-  document.getElementById('modal-app-id').value = app.id;
-  document.getElementById('modal-app-name').value = app.name;
-  document.getElementById('modal-app-url').value = app.url || "";
-  document.getElementById('modal-app-browser').value = app.browser || "firefox";
-  
+  document.getElementById('modal-title').textContent  = "Modifier l'Application";
+  document.getElementById('modal-app-id').value       = app.id;
+  document.getElementById('modal-app-name').value     = app.name;
+  document.getElementById('modal-app-url').value      = app.url || "";
+  document.getElementById('modal-app-browser').value  = app.browser || "firefox";
   document.getElementById('app-modal').classList.add('active');
 }
 
@@ -1035,174 +724,268 @@ function hideModal() {
 
 async function saveModal() {
   vibrate(25);
-  const appId = document.getElementById('modal-app-id').value;
-  const name = document.getElementById('modal-app-name').value.trim();
-  const url = document.getElementById('modal-app-url').value.trim();
+  const appId   = document.getElementById('modal-app-id').value;
+  const name    = document.getElementById('modal-app-name').value.trim();
+  const url     = document.getElementById('modal-app-url').value.trim();
   const browser = document.getElementById('modal-app-browser').value;
-  
-  if (!name || !url) {
-    alert("Veuillez remplir le nom et l'adresse URL.");
-    return;
-  }
-  
-  let endpoint = '/api/apps/add';
-  const payload = { name, url, browser };
-  
-  if (appId) {
-    endpoint = '/api/apps/edit';
-    payload.id = appId;
-  }
-  
+
+  if (!name || !url) { alert("Veuillez remplir le nom et l'adresse URL."); return; }
+
+  const endpoint = appId ? '/api/apps/edit' : '/api/apps/add';
+  const payload  = { name, url, browser };
+  if (appId) payload.id = appId;
+
   const result = await apiPost(endpoint, payload);
-  if (result && result.success) {
-    hideModal();
-    initApps(); // Refresh apps grid
-  } else {
-    alert("Une erreur s'est produite lors de l'enregistrement.");
-  }
+  if (result?.success) { hideModal(); initApps(); }
+  else { alert("Une erreur s'est produite lors de l'enregistrement."); }
 }
 
 async function deleteApp(appId, appName) {
   vibrate([20, 50, 20]);
-  const confirmDel = confirm(`Voulez-vous vraiment supprimer "${appName}" des favoris ?`);
-  if (!confirmDel) return;
-  
+  if (!confirm(`Voulez-vous vraiment supprimer "${appName}" des favoris ?`)) return;
   const result = await apiPost('/api/apps/delete', { id: appId });
-  if (result && result.success) {
-    initApps();
-  } else {
-    alert("Impossible de supprimer l'application.");
-  }
+  if (result?.success) initApps();
+  else alert("Impossible de supprimer l'application.");
 }
 
 async function moveAppInList(currentIndex, direction) {
   vibrate(15);
   const targetIndex = currentIndex + direction;
-  
-  // Boundary check
   if (targetIndex < 0 || targetIndex >= cachedApps.length) return;
-  
-  // Swap items in local array
-  const temp = cachedApps[currentIndex];
-  cachedApps[currentIndex] = cachedApps[targetIndex];
-  cachedApps[targetIndex] = temp;
-  
-  // Compile list of IDs in the new order
-  const orderList = cachedApps.map(app => app.id);
-  
-  // Send order to server
-  const result = await apiPost('/api/apps/reorder', { order: orderList });
-  if (result && result.success) {
-    // Redraw grid immediately
-    initApps();
-  }
+
+  [cachedApps[currentIndex], cachedApps[targetIndex]] = [cachedApps[targetIndex], cachedApps[currentIndex]];
+
+  const result = await apiPost('/api/apps/reorder', { order: cachedApps.map(a => a.id) });
+  if (result?.success) initApps();
 }
 
-// ---------------------------------------------------------
-// Live Screen Monitor & Interactive VNC Control
-// ---------------------------------------------------------
-let isMonitorActive = false;
-let isControlActive = true;  // Contrôle actif par défaut
-let monitorFps = 2;
-let monitorInterval = null;
-let isPolling = false;
-let lastMoveAbsTime = 0;
+// ─── MONITEUR TV EN DIRECT ────────────────────────────────────────────────────
+
+let isMonitorActive  = false;
+let isControlActive  = true;
+let monitorFps       = 2;
+let monitorInterval  = null;
+let isPolling        = false;
+let lastMoveAbsTime  = 0;
 const MOVE_ABS_THROTTLE_MS = 60;
 
 function initMonitor() {
-  const chkMonitor = document.getElementById('chk-monitor-active');
-  const chkControl = document.getElementById('chk-control-active');
-  const fpsSlider = document.getElementById('range-monitor-fps');
-  const fpsVal = document.getElementById('val-monitor-fps');
-  const img = document.getElementById('monitor-screenshot');
+  const chkMonitor   = document.getElementById('chk-monitor-active');
+  const chkControl   = document.getElementById('chk-control-active');
+  const fpsSlider    = document.getElementById('range-monitor-fps');
+  const fpsVal       = document.getElementById('val-monitor-fps');
+  const img          = document.getElementById('monitor-screenshot');
   const innerWrapper = document.getElementById('monitor-screen-inner');
+  const touchpad     = document.getElementById('monitor-touchpad');
+  const modeSelect   = document.getElementById('select-monitor-mode');
+  const fpsRow       = document.getElementById('fps-control-row');
+  const activeRow    = document.getElementById('monitor-active-row');
   
   if (!chkMonitor || !chkControl || !fpsSlider || !img) return;
 
-  // 0. Plein Écran listener
+  // Plein écran
   const btnFullscreen = document.getElementById('btn-monitor-fullscreen');
   if (btnFullscreen) {
     btnFullscreen.addEventListener('click', () => {
-      const monitorContainer = document.getElementById('live-monitor-container');
-      if (monitorContainer) {
-        if (!document.fullscreenElement) {
-          monitorContainer.requestFullscreen().catch(err => {
-            console.error(`Plein écran impossible: ${err.message}`);
-          });
-        } else {
-          document.exitFullscreen();
-        }
+      const container = document.getElementById('live-monitor-container');
+      if (!container) return;
+      if (!document.fullscreenElement) {
+        container.requestFullscreen().catch(err => console.error(`Plein écran impossible: ${err.message}`));
+      } else {
+        document.exitFullscreen();
       }
     });
   }
 
-  // Defaults: flux OFF, contrôle ON
+  // Sélecteur de Mode
+  if (modeSelect && touchpad && innerWrapper) {
+    modeSelect.addEventListener('change', () => {
+      const isTrackpad = modeSelect.value === 'trackpad';
+      innerWrapper.style.display = isTrackpad ? 'none' : 'flex';
+      touchpad.style.display = isTrackpad ? 'flex' : 'none';
+      if (fpsRow) fpsRow.style.display = isTrackpad ? 'none' : 'flex';
+      
+      if (isTrackpad) {
+        // En mode trackpad, on désactive le flux d'images
+        stopMonitor();
+        if (chkMonitor) chkMonitor.checked = false;
+      }
+    });
+  }
+
+  // Détection support tactile (iPad / mobile)
+  const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
+  if (isTouchDevice && modeSelect) {
+    // Par défaut en trackpad
+    modeSelect.value = 'trackpad';
+    if (innerWrapper) innerWrapper.style.display = 'none';
+    if (touchpad) touchpad.style.display = 'flex';
+    if (fpsRow) fpsRow.style.display = 'none';
+    if (activeRow) activeRow.style.display = 'none'; // Pas besoin du Flux Actif
+  }
+
+  // Initialisation du trackpad
+  initTouchpad();
+
+  // État initial
   chkMonitor.checked = false;
   chkControl.checked = true;
-  isControlActive = true;
+  isControlActive    = true;
   innerWrapper.classList.add('control-enabled');
 
-  // 1. Toggle Monitor Active (flux screenshots)
-  chkMonitor.addEventListener('change', () => {
-    if (chkMonitor.checked) {
-      startMonitor();
-    } else {
-      stopMonitor();
-    }
-  });
+  chkMonitor.addEventListener('change', () => chkMonitor.checked ? startMonitor() : stopMonitor());
 
-  // 2. Toggle Interactive Keyboard/Mouse Control
   chkControl.addEventListener('change', () => {
     isControlActive = chkControl.checked;
     innerWrapper.classList.toggle('control-enabled', isControlActive);
-    if (!isControlActive) {
-      document.getElementById('monitor-pointer').style.display = 'none';
-    }
+    if (!isControlActive) document.getElementById('monitor-pointer').style.display = 'none';
     vibrate(20);
   });
 
-  // 3. FPS adjustment
   fpsSlider.addEventListener('input', () => {
     monitorFps = parseInt(fpsSlider.value);
     fpsVal.textContent = monitorFps;
   });
 
-  // 4. Mouse movement on image → moves TV cursor
-  img.addEventListener('mousemove', (e) => {
+  // Déplacement souris sur l'image
+  img.addEventListener('mousemove', e => {
     if (!isControlActive) return;
     const rect = img.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    sendThrottledMoveAbs(x, y);
+    sendThrottledMoveAbs((e.clientX - rect.left) / rect.width, (e.clientY - rect.top) / rect.height);
     updateLocalPointer(e.clientX - rect.left, e.clientY - rect.top);
   });
 
-  // 5. Mouse click on image → move then click on TV
-  img.addEventListener('mousedown', (e) => {
+  // Clic souris sur l'image
+  img.addEventListener('mousedown', e => {
     if (!isControlActive) return;
     const rect = img.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    sendMoveAbsDirect(x, y, () => {
-      const buttonName = e.button === 2 ? 'right' : 'left';
-      apiPost('/api/mouse/click', { button: buttonName });
-    });
+    sendMoveAbsDirect(
+      (e.clientX - rect.left) / rect.width,
+      (e.clientY - rect.top)  / rect.height,
+      () => apiPost('/api/mouse/click', { button: e.button === 2 ? 'right' : 'left' })
+    );
     e.preventDefault();
   });
 
-  // 6. Scroll wheel → scroll on TV
-  img.addEventListener('wheel', (e) => {
+  // Molette → scroll TV
+  img.addEventListener('wheel', e => {
     if (!isControlActive) return;
     e.preventDefault();
     const direction = e.deltaY > 0 ? 'down' : 'up';
-    const clicks = Math.max(1, Math.min(5, Math.round(Math.abs(e.deltaY) / 50)));
+    const clicks    = Math.max(1, Math.min(2, Math.round(Math.abs(e.deltaY) / 120)));
     apiPost('/api/mouse/scroll', { direction, clicks });
   }, { passive: false });
 
-  // 7. Disable right click context menu inside screen share
-  img.addEventListener('contextmenu', (e) => {
-    if (isControlActive) e.preventDefault();
+  // Désactiver menu contextuel sur l'image
+  img.addEventListener('contextmenu', e => { if (isControlActive) e.preventDefault(); });
+}
+
+let touchStartX = 0;
+let touchStartY = 0;
+let lastTouchX = 0;
+let lastTouchY = 0;
+let touchStartT = 0;
+let isMoving = false;
+let touchCount = 0;
+let accumDx = 0;
+let accumDy = 0;
+let lastTouchSendTime = 0;
+const TOUCH_SEND_INTERVAL_MS = 25;
+
+function initTouchpad() {
+  const surface = document.getElementById('touchpad-surface');
+  const btnLeft = document.getElementById('touchpad-btn-left');
+  const btnRight = document.getElementById('touchpad-btn-right');
+  if (!surface) return;
+
+  btnLeft.addEventListener('click', () => {
+    vibrate(15);
+    apiPost('/api/mouse/click', { button: 'left' });
   });
+
+  btnRight.addEventListener('click', () => {
+    vibrate(15);
+    apiPost('/api/mouse/click', { button: 'right' });
+  });
+
+  surface.addEventListener('touchstart', e => {
+    touchCount = e.touches.length;
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    lastTouchX = touchStartX;
+    lastTouchY = touchStartY;
+    touchStartT = Date.now();
+    isMoving = false;
+    accumDx = 0;
+    accumDy = 0;
+  }, { passive: true });
+
+  surface.addEventListener('touchmove', e => {
+    if (e.touches.length === 1 && touchCount === 1) {
+      const touch = e.touches[0];
+      const dx = (touch.clientX - lastTouchX) * 1.5;
+      const dy = (touch.clientY - lastTouchY) * 1.5;
+
+      lastTouchX = touch.clientX;
+      lastTouchY = touch.clientY;
+
+      if (Math.abs(touch.clientX - touchStartX) > 5 || Math.abs(touch.clientY - touchStartY) > 5) {
+        isMoving = true;
+      }
+
+      accumDx += dx;
+      accumDy += dy;
+
+      const now = Date.now();
+      if (now - lastTouchSendTime >= TOUCH_SEND_INTERVAL_MS) {
+        sendTouchMove();
+        lastTouchSendTime = now;
+      }
+    } else if (e.touches.length === 2 && touchCount === 2) {
+      e.preventDefault();
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const avgY = (t1.clientY + t2.clientY) / 2;
+      
+      if (!surface.lastAvgY) {
+        surface.lastAvgY = avgY;
+      } else {
+        const dy = avgY - surface.lastAvgY;
+        if (Math.abs(dy) > 15) {
+          const direction = dy > 0 ? 'down' : 'up';
+          apiPost('/api/mouse/scroll', { direction, clicks: 1 });
+          surface.lastAvgY = avgY;
+          vibrate(10);
+        }
+      }
+    }
+  }, { passive: false });
+
+  surface.addEventListener('touchend', e => {
+    sendTouchMove();
+
+    const duration = Date.now() - touchStartT;
+    if (!isMoving && duration < 300) {
+      vibrate(15);
+      if (touchCount === 1) {
+        apiPost('/api/mouse/click', { button: 'left' });
+      } else if (touchCount === 2) {
+        apiPost('/api/mouse/click', { button: 'right' });
+      }
+    }
+    surface.lastAvgY = null;
+  }, { passive: true });
+
+  function sendTouchMove() {
+    const rx = Math.round(accumDx);
+    const ry = Math.round(accumDy);
+    accumDx = 0;
+    accumDy = 0;
+    if (rx !== 0 || ry !== 0) {
+      apiPost('/api/mouse/move', { dx: rx, dy: ry });
+    }
+  }
 }
 
 function startMonitor() {
@@ -1214,103 +997,75 @@ function startMonitor() {
 function stopMonitor() {
   isMonitorActive = false;
   document.querySelector('.monitor-dot').classList.remove('active');
-  if (monitorInterval) {
-    clearTimeout(monitorInterval);
-    monitorInterval = null;
-  }
-  const img = document.getElementById('monitor-screenshot');
-  img.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='9' viewBox='0 0 16 9'><rect width='100%' height='100%' fill='%23181824'/><text x='50%' y='50%' font-family='sans-serif' font-size='0.8' fill='%236e6e8a' dominant-baseline='middle' text-anchor='middle'>Flux Inactif</text></svg>";
+  if (monitorInterval) { clearTimeout(monitorInterval); monitorInterval = null; }
+  document.getElementById('monitor-screenshot').src =
+    "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='9' viewBox='0 0 16 9'>" +
+    "<rect width='100%' height='100%' fill='%23181824'/>" +
+    "<text x='50%' y='50%' font-family='sans-serif' font-size='0.8' fill='%236e6e8a' " +
+    "dominant-baseline='middle' text-anchor='middle'>Flux Inactif</text></svg>";
   document.getElementById('monitor-pointer').style.display = 'none';
 }
 
 function pollScreenshot() {
-  if (!isMonitorActive) return;
-  if (isPolling) return;
-  
+  if (!isMonitorActive || isPolling) return;
   isPolling = true;
-  const img = document.getElementById('monitor-screenshot');
-  
+  const img     = document.getElementById('monitor-screenshot');
   const tempImg = new Image();
-  tempImg.onload = () => {
-    img.src = tempImg.src;
-    isPolling = false;
-    scheduleNextPoll();
-  };
-  tempImg.onerror = () => {
-    isPolling = false;
-    scheduleNextPoll();
-  };
-  // Append timestamp parameter to force browser cache bypass
+  tempImg.onload  = () => { img.src = tempImg.src; isPolling = false; scheduleNextPoll(); };
+  tempImg.onerror = () => { isPolling = false; scheduleNextPoll(); };
   tempImg.src = `/api/system/screenshot?t=${Date.now()}`;
 }
 
 function scheduleNextPoll() {
   if (monitorInterval) clearTimeout(monitorInterval);
-  const delay = 1000 / monitorFps;
-  monitorInterval = setTimeout(pollScreenshot, delay);
+  monitorInterval = setTimeout(pollScreenshot, 1000 / monitorFps);
 }
 
 function sendThrottledMoveAbs(x, y) {
   const now = Date.now();
   if (now - lastMoveAbsTime >= MOVE_ABS_THROTTLE_MS) {
     lastMoveAbsTime = now;
-    apiPost('/api/mouse/move_abs', { x: x, y: y });
+    apiPost('/api/mouse/move_abs', { x, y });
   }
 }
 
 async function sendMoveAbsDirect(x, y, callback) {
-  const res = await apiPost('/api/mouse/move_abs', { x: x, y: y });
-  if (res && res.success && callback) {
-    callback();
-  }
+  const res = await apiPost('/api/mouse/move_abs', { x, y });
+  if (res?.success && callback) callback();
 }
 
 function updateLocalPointer(px, py) {
   const pointer = document.getElementById('monitor-pointer');
   if (pointer) {
     pointer.style.display = 'block';
-    pointer.style.left = px + 'px';
-    pointer.style.top = py + 'px';
+    pointer.style.left    = px + 'px';
+    pointer.style.top     = py + 'px';
   }
 }
 
-// 7. Global physical keyboard handler when control is active
-window.addEventListener('keydown', (e) => {
+// ─── CLAVIER PHYSIQUE GLOBAL (quand le contrôle live est actif) ───────────────
+
+window.addEventListener('keydown', e => {
   if (!isControlActive) return;
-  
-  // Skip if user is actively editing a text input
+
+  // Ignorer si un champ de texte est actif
   const activeEl = document.activeElement;
-  if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT')) {
-    return;
-  }
-  
-  // Don't intercept modifier combinations (Ctrl+R, Ctrl+T, etc.) — let browser handle them
-  const hasModifier = e.ctrlKey || e.altKey || e.metaKey;
-  if (hasModifier) return;
-  
-  // Mapping key strings to xdotool named keys
+  if (activeEl && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl.tagName)) return;
+
+  // Laisser le navigateur gérer les combinaisons avec modificateurs
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+
   const keyMap = {
-    'Backspace': 'BackSpace',
-    'Tab': 'Tab',
-    'Enter': 'Return',
-    'Escape': 'Escape',
-    ' ': 'space',
-    'ArrowLeft': 'Left',
-    'ArrowUp': 'Up',
-    'ArrowRight': 'Right',
-    'ArrowDown': 'Down',
-    'Delete': 'Delete',
-    'F11': 'F11'
+    'Backspace': 'BackSpace', 'Tab': 'Tab', 'Enter': 'Return',
+    'Escape': 'Escape', ' ': 'space',
+    'ArrowLeft': 'Left', 'ArrowUp': 'Up', 'ArrowRight': 'Right', 'ArrowDown': 'Down',
+    'Delete': 'Delete', 'F11': 'F11',
   };
-  
   const ignoredKeys = ['Control', 'Shift', 'Alt', 'Meta', 'CapsLock'];
   if (ignoredKeys.includes(e.key)) return;
-  
-  let key = keyMap[e.key] || e.key;
-  
-  const modifiers = [];
-  if (e.shiftKey && key.length > 1) modifiers.push('shift');
-  
+
+  const key       = keyMap[e.key] || e.key;
+  const modifiers = (e.shiftKey && key.length > 1) ? ['shift'] : [];
   apiPost('/api/keyboard/key', { key, modifiers });
   e.preventDefault();
 });
