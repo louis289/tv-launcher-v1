@@ -1,5 +1,0 @@
-higlione@ghiglione-System-Product-Name:~/tv-launcher-v1$ ./launcher.py 
-  File "/home/ghiglione/tv-launcher-v1/./launcher.py", line 183
-    css_provider.load_from_data(css.encode("utf-8"))
-IndentationError: unexpected indent
-ghiglione@ghiglione-System-Product-Name:~/tv-launcher-v1$ 
