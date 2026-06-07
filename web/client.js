@@ -207,26 +207,55 @@ function initUrlLauncher() {
 
 function initKeyboard() {
   const textInput      = document.getElementById('keyboard-text-input');
-  const sendBtn        = document.getElementById('btn-send-text');
   const modifierBtns   = document.querySelectorAll('.btn-modifier');
   const virtualEnterBtn = document.getElementById('btn-virtual-enter');
+  if (!textInput) return;
 
-  const sendText = () => {
-    const text = textInput.value;
-    if (!text) return;
-    vibrate(20);
-    apiPost('/api/keyboard/type', { text });
-    textInput.value = '';
-    resetModifiers();
-  };
+  let lastValue = "";
 
-  sendBtn.addEventListener('click', sendText);
-  textInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendText(); });
+  textInput.addEventListener('input', () => {
+    const currentValue = textInput.value;
+    
+    // Si des caractères ont été supprimés
+    if (currentValue.length < lastValue.length) {
+      const diff = lastValue.length - currentValue.length;
+      for (let i = 0; i < diff; i++) {
+        apiPost('/api/keyboard/key', { key: 'BackSpace', modifiers: [] });
+      }
+    } 
+    // Si des caractères ont été ajoutés
+    else if (currentValue.length > lastValue.length) {
+      // Récupérer le texte ajouté
+      const addedText = currentValue.slice(lastValue.length);
+      for (let char of addedText) {
+        if (char === '\n') {
+          apiPost('/api/keyboard/key', { key: 'Return', modifiers: [] });
+        } else {
+          apiPost('/api/keyboard/key', { key: char, modifiers: [] });
+        }
+      }
+    }
+    
+    lastValue = currentValue;
+  });
+
+  textInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      apiPost('/api/keyboard/key', { key: 'Return', modifiers: [] });
+      textInput.value = "";
+      lastValue = "";
+      resetModifiers();
+    }
+  });
 
   if (virtualEnterBtn) {
     virtualEnterBtn.addEventListener('click', () => {
-      sendText();
-      sendDirectKey('Return');
+      vibrate(15);
+      apiPost('/api/keyboard/key', { key: 'Return', modifiers: [] });
+      textInput.value = "";
+      lastValue = "";
+      resetModifiers();
     });
   }
 
