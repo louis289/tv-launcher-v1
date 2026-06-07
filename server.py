@@ -741,7 +741,7 @@ class TVRemoteHandler(BaseHTTPRequestHandler):
         elif path == "/api/quit-app":
             title = get_active_window_title().lower()
             print(f"[QUIT] Titre de la fenêtre active : '{title}'", file=sys.stderr)
-            if "tv launcher remote" in title:
+            if "tv launcher" in title or title == "launcher":
                 print("[QUIT] La fenêtre active est le Lanceur TV. Fermeture ignorée.", file=sys.stderr)
                 self.send_json({"success": False, "error": "Cannot close launcher itself"})
                 return
@@ -761,8 +761,23 @@ class TVRemoteHandler(BaseHTTPRequestHandler):
         # ── Ouvrir le lanceur sur la TV ─────────────────────────────────────
         elif path == "/api/system/open-launcher":
             env = get_x11_env()
-            cmd = "google-chrome --new-window --start-fullscreen --password-store=basic http://localhost"
-            print("[LAUNCH] Ouverture du Lanceur TV", file=sys.stderr)
+            # 1. Tenter d'activer la fenêtre du lanceur si elle est déjà ouverte
+            try:
+                res = subprocess.run(["xdotool", "search", "--onlyvisible", "--name", "TV Launcher"],
+                                     capture_output=True, text=True, env=env, timeout=2)
+                win_ids = res.stdout.strip().split()
+                if win_ids:
+                    win_id = win_ids[0]
+                    print(f"[LAUNCH] Lanceur déjà en cours. Activation de la fenêtre {win_id}", file=sys.stderr)
+                    subprocess.run(["xdotool", "windowactivate", win_id], env=env)
+                    self.send_json({"success": True, "message": "Lanceur activé"})
+                    return
+            except Exception as e:
+                print(f"[LAUNCH] Erreur lors de la recherche du lanceur: {e}", file=sys.stderr)
+
+            # 2. Si non trouvée, relancer le script launcher.py
+            cmd = f"/usr/bin/python3 {os.path.join(BASE_DIR, 'launcher.py')}"
+            print(f"[LAUNCH] Lancement du Lanceur GTK: {cmd}", file=sys.stderr)
             subprocess.Popen(shlex.split(cmd), env=env)
             success = True
 
