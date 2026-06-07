@@ -246,6 +246,12 @@ function initKeyboard() {
       textInput.value = "";
       lastValue = "";
       resetModifiers();
+    } else if (e.key === 'Backspace') {
+      // Si le champ est vide, on envoie quand même un BackSpace à la TV
+      if (textInput.value.length === 0) {
+        vibrate(10);
+        apiPost('/api/keyboard/key', { key: 'BackSpace', modifiers: [] });
+      }
     }
   });
 
@@ -953,8 +959,8 @@ function initTouchpad() {
   surface.addEventListener('touchmove', e => {
     if (e.touches.length === 1 && touchCount === 1) {
       const touch = e.touches[0];
-      const dx = (touch.clientX - lastTouchX) * 3.0;
-      const dy = (touch.clientY - lastTouchY) * 3.0;
+      const dx = (touch.clientX - lastTouchX) * (mouseSpeed * 0.38);
+      const dy = (touch.clientY - lastTouchY) * (mouseSpeed * 0.38);
 
       lastTouchX = touch.clientX;
       lastTouchY = touch.clientY;
