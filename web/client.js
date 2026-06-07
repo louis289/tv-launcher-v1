@@ -905,6 +905,9 @@ function initUpdateButton() {
     if (btn.disabled) return;
     vibrate(30);
 
+    // Close power modal first
+    hidePowerModal();
+
     // Visual feedback
     const original = btn.innerHTML;
     btn.disabled = true;

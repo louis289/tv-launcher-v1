@@ -272,10 +272,7 @@
       <div class="monitor-title-bar">
         <span class="monitor-dot"></span>
         <h2>Moniteur TV en Direct</h2>
-        <div class="monitor-title-actions">
-          <button class="btn-icon-toggle" id="btn-monitor-fullscreen" title="Plein Écran">🖥️ Plein Écran</button>
-          <button class="btn-icon-toggle btn-update" id="btn-system-update" title="Mettre à jour l'app et redémarrer le service">🔄 Mettre à jour</button>
-        </div>
+        <button class="btn-icon-toggle" id="btn-monitor-fullscreen" title="Plein Écran" style="margin-left:auto; font-size:0.7rem; padding:3px 8px; display:inline-flex; align-items:center; gap:4px;">🖥️ Plein Écran</button>
       </div>
       <div class="monitor-controls">
         <div class="monitor-control-item">
@@ -355,6 +352,8 @@
       <div class="modal-actions" style="flex-direction: column; gap: 8px;">
         <button id="btn-power-shutdown" class="btn btn-primary btn-danger-sys" style="width: 100%; height: 42px; justify-content: center;">🔴 Éteindre le PC</button>
         <button id="btn-power-reboot" class="btn btn-secondary" style="width: 100%; height: 42px; border-color: rgba(255,255,255,0.1); justify-content: center;">🔄 Redémarrer</button>
+        <hr style="border-color: rgba(255,255,255,0.06); margin: 2px 0;">
+        <button id="btn-system-update" class="btn btn-secondary" style="width: 100%; height: 42px; border-color: rgba(16,185,129,0.25); color: var(--accent-green); justify-content: center;">🔄 Mettre à jour l'app</button>
         <button id="btn-power-cancel" class="btn btn-secondary" style="width: 100%; height: 42px; border-color: rgba(255,255,255,0.1); justify-content: center;">Annuler</button>
       </div>
     </div>
