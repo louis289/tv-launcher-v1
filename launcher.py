@@ -132,9 +132,9 @@ class Launcher(Gtk.Window):
         # Texte des applications
         font_size_label = int(14 * ZOOM_GLOBAL)
         # Texte de la croix de fermeture
-        font_size_close = int(20 * ZOOM_GLOBAL) 
+        font_size_close = int(45 * ZOOM_GLOBAL) 
         # Marges de la croix
-        margin_close = int(20 * ZOOM_GLOBAL)
+        margin_close = int(25 * ZOOM_GLOBAL)
         # Bordures (focus)
         border_width = int(2 * ZOOM_GLOBAL)
         focus_shadow = int(10 * ZOOM_GLOBAL)
@@ -150,12 +150,13 @@ class Launcher(Gtk.Window):
             font-size: {font_size_close}px; 
             font-weight: bold; 
             margin: {margin_close}px; 
+            padding: {int(5*ZOOM_GLOBAL)}px {int(15*ZOOM_GLOBAL)}px;
             transition: all 0.3s; 
         }}
         #close_btn:hover {{ 
             color: #ff5555; 
             background: rgba(255,255,255,0.1); 
-            border-radius: 50px; 
+            border-radius: {int(40*ZOOM_GLOBAL)}px; 
         }}
         #main_overlay {{ opacity: 0; transition: opacity 1.5s ease-out; }}
         #main_overlay.visible {{ opacity: 1; }}
